@@ -33,7 +33,7 @@ var exam_2025_1_mid_science1 = {
       type: "multiple_choice",
       score: 3.4,
       linkedPassageId: null,
-      imageUrl: null,
+      imageUrl: "./images/2025_1_mid_science1_q2.png",
       questionText: "2. 다음은 국제 단위계(SI)의 기본량과 단위를 나타낸 것이다. ㉠, ㉡안에 들어갈 기본량과 단위로 옳은 것을 고르면? [3.4점]",
       passage: `기본량 | 시간 | 길이 | 질량 | 전류 | ( ㉠ )\n단위 | s | ( ㉡ ) | kg | A | K`,
       options: [
@@ -160,7 +160,7 @@ var exam_2025_1_mid_science1 = {
       score: 3.7,
       linkedPassageId: null,
       imageUrl: null,
-      questionText: "9. 자연의 변화 측정과 분석에 대한 설명으로 옳지 않은 것은? [3.7점]",
+      questionText: "9. 자연의 변화 측정과 분석에 대한 설명으로 옳지 <u>않은</u> 것은? [3.7점]",
       passage: null,
       options: [
         "① 자연에서 일어나는 다양한 변화가 전달되는 것을 신호라고 한다.",
@@ -375,9 +375,9 @@ var exam_2025_1_mid_science1 = {
       type: "multiple_choice",
       score: 4.4,
       linkedPassageId: null,
-      imageUrl: null,
+      imageUrl: "./images/2025_1_mid_science1_q21.png",
       questionText: "21. 표 (가)는 단백질과 DNA에서 특성 ㉠, ㉡의 유무를 나타낸 것이고, (나)는 ㉠, ㉡을 순서 없이 나타낸 것이다.\n이에 대한 설명으로 옳은 것만을 <보기>에서 있는 대로 고른 것은? [4.4점]",
-      passage: `(가)\n| 구분 | ㉠ | ㉡ |\n|---|---|---|\n| 단백질 | ⓐ | ○ |\n| DNA | ○ | ? |\n(○: 있음, ×: 없음)\n\n(나)\n특성\n• 구성원소에 탄소(C)가 포함된다.\n• 유전정보를 저장하고 있다.\n\n<보 기>\nㄱ. ⓐ는 ‘○’이다.\nㄴ. 탄수화물은 ㉠의 특징을 갖는다.\nㄷ. ㉡은 ‘구성원소에 탄소(C)가 포함된다.’이다.`,
+      passage: null,
       options: [
         "① ㄱ",
         "② ㄷ",
@@ -429,9 +429,9 @@ var exam_2025_1_mid_science1 = {
       type: "multiple_choice",
       score: 4.9,
       linkedPassageId: null,
-      imageUrl: null,
+      imageUrl: "./images/2025_1_mid_science1_q24.png",
       questionText: "24. 표 (가)는 반도체 소자 A, B, C에서 특징 ㉠∼㉢의 유무를, (나)는 특징 ㉠∼㉢을 순서 없이 나타낸 것이다. A, B, C는 다이오드, 트랜지스터, 발광 다이오드 중 하나이다.\n이에 대한 설명으로 옳은 것만을 <보기>에서 있는 대로 고른 것은? [4.9점]",
-      passage: `(가)\n| 구분 | ㉠ | ㉡ | ㉢ |\n|---|---|---|---|\n| A | ○ | × | × |\n| B | ⓐ | ○ | × |\n| C | × | × | ○ |\n(○: 있음, ×: 없음)\n\n(나)\n특징(㉠∼㉢)\n• 전압을 증폭시킬 수 있다.\n• 빛의 3원색을 구현할 수 있다.\n• 전류의 흐름을 제어할 수 있다.\n\n<보 기>\nㄱ. ⓐ는 ‘○’이다.\nㄴ. ㉢은 ‘빛의 3원색을 구현할 수 있다.’이다.\nㄷ. B는 주기적으로 변하는 신호를 일정하게 해준다.`,
+      passage: null,
       options: [
         "① ㄱ",
         "② ㄴ",

@@ -10,22 +10,23 @@ header {
 }
 header h2 { font-weight: 700; font-size: 22px; }
 
-/* --- ★ 필기 도구 버튼 스타일 --- */
+/* --- 필기 도구 버튼 스타일 --- */
 .tool-btn {
     padding: 8px 15px; border-radius: 20px; border: 1px solid #fff;
     background: transparent; color: #fff; cursor: pointer; font-size: 14px; transition: 0.3s;
 }
 .tool-btn.active { background-color: #fff; color: #5c8d89; font-weight: bold; }
 
-/* --- ★ 투명 필기 레이어 스타일 --- */
+/* --- ★ 투명 필기 레이어 스타일 (형광펜 마법 적용) --- */
 .overlay-canvas {
     position: absolute; top: 0; left: 0;
     width: 100%; height: 100%;
-    z-index: 10; /* 글자 위에 올라오도록 설정 */
-    pointer-events: none; /* 기본은 이동 모드(터치 통과) */
+    z-index: 10; 
+    pointer-events: none; 
     touch-action: none;
+    /* ★ 마법의 한 줄: 색상이 겹칠 때 글씨(검은색)를 덮지 않고 그대로 통과시킵니다 */
+    mix-blend-mode: multiply; 
 }
-/* 펜 모드일 때만 클릭/터치를 캔버스가 가로챔 */
 .pen-mode-active .overlay-canvas { pointer-events: auto; cursor: crosshair; }
 
 

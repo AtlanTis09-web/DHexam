@@ -53,7 +53,7 @@ var exam_2025_1_fin_social = {
       type: "multiple_choice",
       score: 3.6,
       linkedPassageId: null,
-      imageUrl: null,
+      imageUrl: "./images/2025_1_fin_social_q9.png",
       questionText: "3. 글의 (가), (나)에 들어갈 말로 알맞게 짝지어진 것은? [3.6점]",
       passage: `다문화주의는 국가라는 ( 가 ) 안에서 각 문화의 고유한 맛이 나타날 수 있도록 다양한 인종과 문화가 함께 어울리는 문화를 만들자는 입장이다. 다문화주의 정책을 추구하는 국가는 서로 다른 문화적 배경을 가진 사람들이 함께 어울려 살아가는 사회를 목표로 주류 문화와 비주류 문화의 구분 없이 여러 문화가 대등하게 ( 나 )하도록 한다.`,
       options: [

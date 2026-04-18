@@ -8,66 +8,74 @@
     
     <script src="exam_list.js"></script>
 
-   <script src="2024_1_mid_korean.js"></script>
-<script src="2024_1_mid_math.js"></script>
-<script src="2024_1_mid_history.js"></script>
-<script src="2024_1_mid_science.js"></script>
-<script src="2024_1_mid_social.js"></script>
-<script src="2024_1_mid_eglish.js"></script>
-<script src="2024_1_fin_korean.js"></script>
-<script src="2024_1_fin_math.js"></script>
-<script src="2024_1_fin_history.js"></script>
-<script src="2024_1_fin_science.js"></script>
-<script src="2024_1_fin_society.js"></script> 
-<script src="2024_1_fin_english.js"></script>
-<script src="2024_1_fin_info.js"></script>
-<script src="2024_1_fin_tech.js"></script>
+    <script src="2024_1_mid_korean.js"></script>
+    <script src="2024_1_mid_math.js"></script>
+    <script src="2024_1_mid_history.js"></script>
+    <script src="2024_1_mid_science.js"></script>
+    <script src="2024_1_mid_social.js"></script>
+    <script src="2024_1_mid_eglish.js"></script>
+    <script src="2024_1_fin_korean.js"></script>
+    <script src="2024_1_fin_math.js"></script>
+    <script src="2024_1_fin_history.js"></script>
+    <script src="2024_1_fin_science.js"></script>
+    <script src="2024_1_fin_society.js"></script> 
+    <script src="2024_1_fin_english.js"></script>
+    <script src="2024_1_fin_info.js"></script>
+    <script src="2024_1_fin_tech.js"></script>
 
-<script src="2025_1_mid_korean.js"></script>
-<script src="2025_1_mid_math.js"></script>
-<script src="2025_1_mid_history1.js"></script>
-<script src="2025_1_mid_science1.js"></script>
-<script src="2025_1_mid_social1.js"></script>
-<script src="2025_1_mid_english1.js"></script>
-<script src="2025_1_fin_korean.js"></script>
-<script src="2025_1_fin_math.js"></script>
-<script src="2025_1_fin_history.js"></script>
-<script src="2025_1_fin_science.js"></script>
-<script src="2025_1_fin_social.js"></script>
-<script src="2025_1_fin_english.js"></script>
-<script src="2025_1_fin_info.js"></script>
-<script src="2025_1_fin_tech.js"></script>
+    <script src="2024_2_mid_korean.js"></script>
+    <script src="2024_2_mid_math.js"></script>
+    <script src="2024_2_mid_history.js"></script>
+    <script src="2024_2_mid_science.js"></script>
+    <script src="2024_2_mid_social.js"></script>
+    <script src="2024_2_mid_english.js"></script>
+    <script src="2024_2_fin_korean.js"></script>
+    <script src="2024_2_fin_math.js"></script>
+    <script src="2024_2_fin_history.js"></script>
+    <script src="2024_2_fin_science.js"></script>
+    <script src="2024_2_fin_social.js"></script>
+    <script src="2024_2_fin_english.js"></script>
+    <script src="2024_2_fin_info.js"></script>
+    <script src="2024_2_fin_tech.js"></script>
+
+    <script src="2025_1_mid_korean.js"></script>
+    <script src="2025_1_mid_math.js"></script>
+    <script src="2025_1_mid_history1.js"></script>
+    <script src="2025_1_mid_science1.js"></script>
+    <script src="2025_1_mid_social1.js"></script>
+    <script src="2025_1_mid_english1.js"></script>
+    <script src="2025_1_fin_korean.js"></script>
+    <script src="2025_1_fin_math.js"></script>
+    <script src="2025_1_fin_history.js"></script>
+    <script src="2025_1_fin_science.js"></script>
+    <script src="2025_1_fin_social.js"></script>
+    <script src="2025_1_fin_english.js"></script>
+    <script src="2025_1_fin_info.js"></script>
+    <script src="2025_1_fin_tech.js"></script>
 </head>
 <body>
 
     <header>
         <h2 id="headerTitle">과목을 선택해주세요</h2>
-        <div id="penToolBar" style="display: none; margin-top: 10px; justify-content: center; gap: 10px;">
-            <button id="modeToggleBtn" class="tool-btn active" onclick="togglePenMode()">🖐️ 이동 모드 (스크롤)</button>
-            <button class="tool-btn" onclick="clearFullCanvas()" style="background-color: #e74c3c;">🧹 현재 문제 필기 지우기</button>
+        <div id="penToolBar" style="display: none; margin-top: 10px; justify-content: center; gap: 8px;">
+            <button id="modeScrollBtn" class="tool-btn active" onclick="setMode('scroll')">🖐️ 이동</button>
+            <button id="modePenBtn" class="tool-btn" onclick="setMode('pen')">✏️ 빨간펜</button>
+            <button id="modeHighlighterBtn" class="tool-btn" onclick="setMode('highlighter')">🖍️ 형광펜</button>
+            <button class="tool-btn" onclick="clearFullCanvas()" style="background-color: #e74c3c;">🧹 필기 지우기</button>
         </div>
     </header>
 
     <div id="selectionScreen" class="selection-container">
         <h3 style="margin-bottom: 20px; color: #5c8d89;">풀이할 시험지를 선택하세요</h3>
-        
         <div class="select-group">
-            <select id="gradeSelect" onchange="updateSubjects()">
-                <option value="">1. 학년을 선택하세요</option>
-            </select>
-            <select id="subjectSelect" onchange="updateExams()" disabled>
-                <option value="">2. 과목을 선택하세요</option>
-            </select>
-            <select id="examSelect" disabled>
-                <option value="">3. 시험을 선택하세요</option>
-            </select>
+            <select id="gradeSelect" onchange="updateSubjects()"><option value="">1. 학년을 선택하세요</option></select>
+            <select id="subjectSelect" onchange="updateExams()" disabled><option value="">2. 과목을 선택하세요</option></select>
+            <select id="examSelect" disabled><option value="">3. 시험을 선택하세요</option></select>
         </div>
-
         <button class="primary-btn" style="width: 100%; margin-top: 25px;" onclick="startExam()">시험 시작</button>
     </div>
 
     <div class="quiz-container" id="quizContainer" style="display: none;">
-        
         <div class="passage-area" id="passageArea" style="position: relative;">
             <canvas id="passageCanvas" class="overlay-canvas"></canvas>
             <div class="passage-content collapsed" id="passageContent"></div>
@@ -92,17 +100,10 @@
                 <input type="text" id="subjectiveInput" placeholder="답을 입력하고 엔터를 누르세요">
             </div>
 
-            <div id="drawingArea" style="margin-top:20px; position:relative; z-index:11;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <p style="font-size:13px; color:#666; margin:0;">✍️ 수학 풀이 연습장 (항상 써짐)</p>
-                    <button onclick="clearScratchCanvas()" style="font-size:12px; padding:5px 10px; cursor:pointer; border:1px solid #ccc; background:#fff; border-radius:4px;">지우개 싹싹</button>
-                </div>
-                <canvas id="paintCanvas" style="border:1px dashed #aaa; background:#f9f9f9; width:100%; height:250px; touch-action:none;"></canvas>
-            </div>
-            
-            <div class="btn-group" style="position:relative; z-index:11; display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-                <button class="secondary-btn" onclick="location.reload()">🏠 메인으로</button>
-                <button class="primary-btn" onclick="goNext()">다음 문제 ❯</button>
+            <div class="btn-group" style="position:relative; z-index:11; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 10px;">
+                <button class="secondary-btn" onclick="location.reload()" style="flex: 1; padding: 14px 10px;">🏠 메인</button>
+                <button class="secondary-btn" id="prevBtn" onclick="goPrev()" style="flex: 1.5; padding: 14px 10px; display: none; background-color: #7f8c8d;">❮ 이전 문제</button>
+                <button class="primary-btn" id="nextBtn" onclick="goNext()" style="flex: 2; padding: 14px 10px;">다음 문제 ❯</button>
             </div>
         </div>
     </div>

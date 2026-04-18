@@ -1,30 +1,29 @@
 let currentQuizData = null;
 let currentIndex = 0;
 let userAnswers = [];
+let retryAnswers = []; 
 let isAnswerChecked = false; 
 
 let wrongQuestionsQueue = []; 
 let isRetryMode = false;
 
-// 필기(Canvas) 및 저장 기능을 위한 변수
-let isPenMode = false;
-let drawings = {}; // 예: { '2024_1_mid_korean_1': { passage: 'data...', question: 'data...' } }
+// 필기 및 형광펜 모드 변수
+let currentMode = 'scroll'; 
+let drawings = {}; 
 let canvasPassage, ctxPassage, canvasQuestion, ctxQuestion;
-let paintCanvas, paintCtx; // 수학 하단 연습장용
 
 function safeText(text) {
     if (!text) return "";
-    return text.replace(/<보기>/g, '&lt;보기&gt;').replace(/<보 기>/g, '&lt;보 기&gt;');
+    let result = text.replace(/<보기>/g, '&lt;보기&gt;').replace(/<보 기>/g, '&lt;보 기&gt;');
+    result = result.replace(/\n/g, '<br>');
+    return result;
 }
 
 window.onload = function() {
     initAllCanvases();
     
-    // LocalStorage에서 기존 필기 데이터 불러오기
     const savedDrawings = localStorage.getItem('master_drawings');
-    if (savedDrawings) {
-        drawings = JSON.parse(savedDrawings);
-    }
+    if (savedDrawings) drawings = JSON.parse(savedDrawings);
 
     const gradeSelect = document.getElementById('gradeSelect');
     if (typeof examListInfo !== 'undefined') {
@@ -87,8 +86,6 @@ function startExam() {
     if (!currentQuizData) { alert("데이터를 찾을 수 없습니다."); return; }
 
     isRetryMode = false;
-    
-    // 시험 시작 시 상단 필기 툴바 보이기
     document.getElementById('penToolBar').style.display = 'flex';
     initExamUI();
 }
@@ -107,9 +104,11 @@ function initExamUI() {
     renderQuestion();
 }
 
+// ==========================================
+// ★ 문제 렌더링 및 하단 여백 자동 생성
+// ==========================================
 function renderQuestion() {
     isAnswerChecked = false;
-    clearScratchCanvas(); // 하단 수학 연습장은 항상 새 문제마다 지우기
     
     const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
     
@@ -129,7 +128,8 @@ function renderQuestion() {
         imgContainer.style.display = 'none';
     }
 
-    document.getElementById('questionTitle').innerHTML = `${q.questionNum}. ${safeText(q.questionText)} <span style="font-size:14px; color:#666; font-weight:normal;">[${q.score}점]</span>`;
+    // 중복 번호 방지를 위해 번호 자동 삽입 로직 제거
+    document.getElementById('questionTitle').innerHTML = `${safeText(q.questionText)} <span style="font-size:14px; color:#666; font-weight:normal;">[${q.score}점]</span>`;
     
     const inlineContainer = document.getElementById('inlinePassageContainer');
     if (q.passage) {
@@ -143,6 +143,13 @@ function renderQuestion() {
     const subContainer = document.getElementById('subjectiveContainer');
     const subInput = document.getElementById('subjectiveInput');
     
+    let existingAns = null;
+    if (!isRetryMode) {
+        existingAns = userAnswers.find(a => a.qIndex === currentIndex);
+    } else {
+        existingAns = retryAnswers.find(a => a.qIndex === currentIndex);
+    }
+
     if (q.options && q.options.length > 0) {
         optContainer.style.display = 'block';
         subContainer.style.display = 'none';
@@ -161,184 +168,87 @@ function renderQuestion() {
         subInput.onkeypress = function(e) { if(e.key === 'Enter') checkSubjective(); };
     }
 
-    // 수학 과목인지 판별해서 하단 연습장 띄우기
-    const drawingArea = document.getElementById('drawingArea');
-    if (drawingArea) {
-        if (currentQuizData.examInfo.subject.includes("수학")) {
-            drawingArea.style.display = 'block';
-        } else {
-            drawingArea.style.display = 'none';
+    // ★ 수학 과목일 때 풀이용 빈 공간(하얀 여백) 넉넉하게 추가
+    let mathSpacer = document.getElementById('mathSpacer');
+    if (!mathSpacer) {
+        mathSpacer = document.createElement('div');
+        mathSpacer.id = 'mathSpacer';
+        mathSpacer.style.height = '350px'; // 넉넉한 350px 빈 도화지 공간
+        const btnGroup = document.querySelector('.btn-group');
+        if (btnGroup) {
+            document.querySelector('.question-area').insertBefore(mathSpacer, btnGroup);
         }
+    }
+    
+    if (currentQuizData.examInfo.subject.includes("수학")) {
+        mathSpacer.style.display = 'block';
+    } else {
+        mathSpacer.style.display = 'none';
     }
 
     if (document.getElementById('explanationBox')) document.getElementById('explanationBox').remove();
     
-    const nextBtn = document.querySelector('.question-area .primary-btn');
+    const prevBtn = document.getElementById('prevBtn');
+    if (prevBtn) prevBtn.style.display = (currentIndex === 0) ? 'none' : 'block';
+
+    const nextBtn = document.getElementById('nextBtn');
     const totalCount = isRetryMode ? wrongQuestionsQueue.length : currentQuizData.questions.length;
     nextBtn.innerText = (currentIndex === totalCount - 1) ? '결과 보기 ❯' : '다음 문제 ❯';
     nextBtn.style.backgroundColor = '#5c8d89';
 
-    // 화면 렌더링이 끝난 후 투명 캔버스 크기 조절 및 저장된 필기 불러오기
+    if (existingAns) {
+        isAnswerChecked = true;
+        if (q.options && q.options.length > 0) {
+            const radios = document.querySelectorAll('input[name="opt"]');
+            if (radios[existingAns.selected]) radios[existingAns.selected].checked = true;
+            radios.forEach(r => r.disabled = true);
+        } else {
+            subInput.value = existingAns.selected;
+            subInput.disabled = true;
+        }
+        const correctLabel = (q.options && q.options.length > 0) ? q.options[q.correctAnswer].split(' ')[0] : q.correctAnswer; 
+        showFeedback(existingAns.correct, q.explanation, correctLabel);
+    }
+
     setTimeout(() => {
         resizeAllCanvases();
         loadCurrentDrawings();
     }, 100);
 }
 
-// ==========================================
-// ★ 필기(Canvas) 및 저장 로직 모음
-// ==========================================
-function initAllCanvases() {
-    canvasPassage = document.getElementById('passageCanvas');
-    ctxPassage = canvasPassage.getContext('2d');
-    canvasQuestion = document.getElementById('questionCanvas');
-    ctxQuestion = canvasQuestion.getContext('2d');
-    
-    paintCanvas = document.getElementById('paintCanvas');
-    paintCtx = paintCanvas.getContext('2d');
-
-    // 지문, 문제 영역은 '펜 모드'일 때만 그려지도록 설정
-    setupDrawing(canvasPassage, ctxPassage, true);
-    setupDrawing(canvasQuestion, ctxQuestion, true);
-    
-    // 하단 수학 연습장은 모드 상관없이 항상 그려지도록 설정
-    setupDrawing(paintCanvas, paintCtx, false);
-}
-
-function setupDrawing(canvas, ctx, requirePenMode = true) {
-    let drawing = false;
-
-    const start = (e) => { 
-        if (requirePenMode && !isPenMode) return; // 이동 모드면 무시
-        drawing = true; 
-        draw(e); 
-        if (requirePenMode) e.preventDefault(); // 펜 모드일 때 스크롤 방지
-    };
-    const end = (e) => { 
-        if (!drawing) return;
-        drawing = false; 
-        ctx.beginPath(); 
-        if (requirePenMode) {
-            saveCurrentDrawings(); // 펜을 뗄 때마다 자동 저장
-        }
-    };
-    const draw = (e) => {
-        if (!drawing || (requirePenMode && !isPenMode)) return;
-        if (requirePenMode) e.preventDefault();
-        
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        // 지문 위 펜 색상은 빨간색, 수학 하단 연습장은 짙은 남색
-        ctx.strokeStyle = requirePenMode ? '#e74c3c' : '#2c3e50'; 
-
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-    };
-
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', end);
-    canvas.addEventListener('mouseleave', end);
-
-    canvas.addEventListener('touchstart', start, {passive: false});
-    canvas.addEventListener('touchmove', draw, {passive: false});
-    canvas.addEventListener('touchend', end);
-}
-
-// 펜 모드 켜고 끄기
-function togglePenMode() {
-    isPenMode = !isPenMode;
-    const btn = document.getElementById('modeToggleBtn');
-    if (isPenMode) {
-        btn.innerText = "✏️ 펜 모드 (현재 필기중)";
-        btn.classList.add('active');
-        document.body.classList.add('pen-mode-active');
-    } else {
-        btn.innerText = "🖐️ 이동 모드 (스크롤)";
-        btn.classList.remove('active');
-        document.body.classList.remove('pen-mode-active');
+function goPrev() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion();
+        document.querySelector('.question-area').scrollTop = 0;
     }
 }
 
-// 현재 문제의 필기 저장하기
-function saveCurrentDrawings() {
-    if (!currentQuizData) return;
+function goNext() {
     const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    // 예: "2024_1_mid_science_1" 처럼 고유 키 생성
-    const qKey = currentQuizData.examInfo.examId + "_" + q.questionNum;
     
-    drawings[qKey] = {
-        passage: canvasPassage.toDataURL(),
-        question: canvasQuestion.toDataURL()
-    };
-    localStorage.setItem('master_drawings', JSON.stringify(drawings));
-}
-
-// 현재 문제의 필기 불러오기
-function loadCurrentDrawings() {
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    const qKey = currentQuizData.examInfo.examId + "_" + q.questionNum;
-    
-    // 일단 화면을 깨끗하게 지우기
-    ctxPassage.clearRect(0, 0, canvasPassage.width, canvasPassage.height);
-    ctxQuestion.clearRect(0, 0, canvasQuestion.width, canvasQuestion.height);
-    
-    // 저장된 이미지가 있으면 그리기
-    if (drawings[qKey]) {
-        if (drawings[qKey].passage) {
-            const imgP = new Image();
-            imgP.onload = () => ctxPassage.drawImage(imgP, 0, 0);
-            imgP.src = drawings[qKey].passage;
-        }
-        if (drawings[qKey].question) {
-            const imgQ = new Image();
-            imgQ.onload = () => ctxQuestion.drawImage(imgQ, 0, 0);
-            imgQ.src = drawings[qKey].question;
+    if (!isAnswerChecked && (!q.options || q.options.length === 0)) {
+        const inputVal = document.getElementById('subjectiveInput').value.trim();
+        if (inputVal) {
+            checkSubjective(); 
+            return; 
         }
     }
-}
-
-// 투명 레이어 필기 싹 지우기 버튼
-function clearFullCanvas() {
-    if (!confirm("이 문제에 작성한 펜 필기를 모두 지울까요?")) return;
-    ctxPassage.clearRect(0, 0, canvasPassage.width, canvasPassage.height);
-    ctxQuestion.clearRect(0, 0, canvasQuestion.width, canvasQuestion.height);
-    saveCurrentDrawings(); // 지운 상태도 저장
-}
-
-// 수학 연습장 지우기
-function clearScratchCanvas() { 
-    if(paintCtx && paintCanvas) {
-        paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); 
+    
+    const totalCount = isRetryMode ? wrongQuestionsQueue.length : currentQuizData.questions.length;
+    
+    if (currentIndex === totalCount - 1) { 
+        if (!isAnswerChecked && !confirm("마지막 문제입니다. 풀지 않은 문제는 오답 처리됩니다. 결과를 보시겠습니까?")) {
+            return;
+        }
+        showResults(); 
+    } else { 
+        currentIndex++; 
+        renderQuestion(); 
+        document.querySelector('.question-area').scrollTop = 0; 
     }
 }
 
-// 화면이나 지문이 접힐 때 캔버스 크기도 맞춤
-function resizeAllCanvases() {
-    if(canvasPassage && canvasPassage.parentElement) {
-        canvasPassage.width = canvasPassage.parentElement.clientWidth;
-        canvasPassage.height = canvasPassage.parentElement.scrollHeight;
-    }
-    if(canvasQuestion && canvasQuestion.parentElement) {
-        canvasQuestion.width = canvasQuestion.parentElement.clientWidth;
-        canvasQuestion.height = canvasQuestion.parentElement.scrollHeight;
-    }
-    if(paintCanvas && paintCanvas.parentElement) {
-        paintCanvas.width = paintCanvas.parentElement.clientWidth;
-    }
-}
-
-window.addEventListener('resize', resizeAllCanvases);
-
-// ==========================================
-// 채점 및 결과 확인 로직
-// ==========================================
 function checkAnswer(selectedVal) {
     if (isAnswerChecked) return;
     isAnswerChecked = true;
@@ -348,6 +258,8 @@ function checkAnswer(selectedVal) {
     
     if (!isRetryMode) {
         userAnswers.push({ qIndex: currentIndex, selected: selectedVal, correct: isCorrect });
+    } else {
+        retryAnswers.push({ qIndex: currentIndex, selected: selectedVal, correct: isCorrect });
     }
 
     document.querySelectorAll('input[name="opt"]').forEach(r => r.disabled = true);
@@ -358,7 +270,7 @@ function checkAnswer(selectedVal) {
 function checkSubjective() {
     if (isAnswerChecked) return;
     const inputVal = document.getElementById('subjectiveInput').value.trim();
-    if (!inputVal) { alert("답을 입력해주세요!"); return; }
+    if (!inputVal) return;
     
     isAnswerChecked = true;
     const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
@@ -366,6 +278,8 @@ function checkSubjective() {
     
     if (!isRetryMode) {
         userAnswers.push({ qIndex: currentIndex, selected: inputVal, correct: isCorrect });
+    } else {
+        retryAnswers.push({ qIndex: currentIndex, selected: inputVal, correct: isCorrect });
     }
 
     document.getElementById('subjectiveInput').disabled = true;
@@ -391,29 +305,143 @@ function showFeedback(isCorrect, explanation, realAns) {
     if (isCorrect) {
         document.querySelector('.question-area .primary-btn').style.backgroundColor = '#27ae60';
     }
-    // 해설이 추가되어 화면이 길어졌으므로 캔버스 크기 재조정
     setTimeout(resizeAllCanvases, 50); 
 }
 
-function goNext() {
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    
-    if (!isAnswerChecked && (!q.options || q.options.length === 0)) {
-        checkSubjective(); return;
-    }
-    if (!isAnswerChecked) { alert("답을 선택하거나 입력해주세요!"); return; }
-    
-    const totalCount = isRetryMode ? wrongQuestionsQueue.length : currentQuizData.questions.length;
-    
-    if (currentIndex === totalCount - 1) { 
-        showResults(); 
-    } else { 
-        currentIndex++; 
-        renderQuestion(); 
-        document.querySelector('.question-area').scrollTop = 0; 
+// ==========================================
+// 툴바 및 캔버스 관련 로직 (전체 화면 필기만 남김)
+// ==========================================
+function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('modeScrollBtn').classList.remove('active');
+    document.getElementById('modePenBtn').classList.remove('active');
+    document.getElementById('modeHighlighterBtn').classList.remove('active');
+
+    if (mode === 'scroll') {
+        document.getElementById('modeScrollBtn').classList.add('active');
+        document.body.classList.remove('pen-mode-active');
+    } else {
+        if (mode === 'pen') document.getElementById('modePenBtn').classList.add('active');
+        if (mode === 'highlighter') document.getElementById('modeHighlighterBtn').classList.add('active');
+        document.body.classList.add('pen-mode-active');
     }
 }
 
+function initAllCanvases() {
+    canvasPassage = document.getElementById('passageCanvas');
+    ctxPassage = canvasPassage.getContext('2d');
+    canvasQuestion = document.getElementById('questionCanvas');
+    ctxQuestion = canvasQuestion.getContext('2d');
+
+    setupDrawing(canvasPassage, ctxPassage, true);
+    setupDrawing(canvasQuestion, ctxQuestion, true);
+}
+
+function setupDrawing(canvas, ctx, requirePenMode = true) {
+    let drawing = false;
+
+    const start = (e) => { 
+        if (requirePenMode && currentMode === 'scroll') return; 
+        drawing = true; 
+        draw(e); 
+        if (requirePenMode) e.preventDefault(); 
+    };
+    const end = (e) => { 
+        if (!drawing) return;
+        drawing = false; 
+        ctx.beginPath(); 
+        if (requirePenMode) saveCurrentDrawings(); 
+    };
+    const draw = (e) => {
+        if (!drawing || (requirePenMode && currentMode === 'scroll')) return;
+        if (requirePenMode) e.preventDefault();
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+        if (requirePenMode && currentMode === 'highlighter') {
+            ctx.lineWidth = 18; 
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'rgba(150, 255, 100, 0.4)'; 
+        } else {
+            ctx.lineWidth = 2; 
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = requirePenMode ? '#e74c3c' : '#2c3e50'; 
+        }
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+
+    canvas.addEventListener('touchstart', start, {passive: false});
+    canvas.addEventListener('touchmove', draw, {passive: false});
+    canvas.addEventListener('touchend', end);
+}
+
+function saveCurrentDrawings() {
+    if (!currentQuizData) return;
+    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
+    const qKey = currentQuizData.examInfo.examId + "_" + q.questionNum;
+    
+    drawings[qKey] = {
+        passage: canvasPassage.toDataURL(),
+        question: canvasQuestion.toDataURL()
+    };
+    localStorage.setItem('master_drawings', JSON.stringify(drawings));
+}
+
+function loadCurrentDrawings() {
+    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
+    const qKey = currentQuizData.examInfo.examId + "_" + q.questionNum;
+    
+    ctxPassage.clearRect(0, 0, canvasPassage.width, canvasPassage.height);
+    ctxQuestion.clearRect(0, 0, canvasQuestion.width, canvasQuestion.height);
+    
+    if (drawings[qKey]) {
+        if (drawings[qKey].passage) {
+            const imgP = new Image();
+            imgP.onload = () => ctxPassage.drawImage(imgP, 0, 0);
+            imgP.src = drawings[qKey].passage;
+        }
+        if (drawings[qKey].question) {
+            const imgQ = new Image();
+            imgQ.onload = () => ctxQuestion.drawImage(imgQ, 0, 0);
+            imgQ.src = drawings[qKey].question;
+        }
+    }
+}
+
+function clearFullCanvas() {
+    if (!confirm("이 문제에 작성한 펜 필기를 모두 지울까요?")) return;
+    ctxPassage.clearRect(0, 0, canvasPassage.width, canvasPassage.height);
+    ctxQuestion.clearRect(0, 0, canvasQuestion.width, canvasQuestion.height);
+    saveCurrentDrawings(); 
+}
+
+function resizeAllCanvases() {
+    if(canvasPassage && canvasPassage.parentElement) {
+        canvasPassage.width = canvasPassage.parentElement.clientWidth;
+        canvasPassage.height = canvasPassage.parentElement.scrollHeight;
+    }
+    if(canvasQuestion && canvasQuestion.parentElement) {
+        canvasQuestion.width = canvasQuestion.parentElement.clientWidth;
+        canvasQuestion.height = canvasQuestion.parentElement.scrollHeight;
+    }
+}
+
+window.addEventListener('resize', resizeAllCanvases);
+
+// ==========================================
+// ★ 결과 창 보기 로직
+// ==========================================
 function showResults() {
     document.getElementById('quizContainer').style.display = 'none';
     document.getElementById('penToolBar').style.display = 'none';
@@ -450,7 +478,7 @@ function showResults() {
         
         wrongQuestionsQueue.forEach((q) => {
             const ansObj = userAnswers.find(a => a.qIndex === currentQuizData.questions.indexOf(q));
-            let myAnsText = "선택/입력 안 함";
+            let myAnsText = "선택/입력 안 함 (건너뜀)";
             let realAnsText = q.correctAnswer;
             
             if (ansObj && ansObj.selected !== undefined) {
@@ -463,8 +491,11 @@ function showResults() {
             }
 
             let cardHtml = `<div class="wrong-card" style="margin-bottom:20px; border:1px solid #ef9a9a; padding:20px; border-radius:12px; background:#ffebee; box-shadow:0 2px 8px rgba(0,0,0,0.05);">`;
-            cardHtml += `<h3 style="color:#e74c3c; margin-bottom:10px;">${q.questionNum}번 ❌ 오답 (${q.score}점)</h3>`;
-            cardHtml += `<p style="margin:10px 0; font-weight:500; font-size:16px;">${safeText(q.questionText)}</p>`;
+            cardHtml += `<h3 style="color:#e74c3c; margin-bottom:10px;">${safeText(q.questionText)} <span style="font-size:14px; color:#666; font-weight:normal;">[${q.score}점]</span></h3>`;
+            
+            if (q.passage) {
+                cardHtml += `<div class="inline-passage" style="margin-top:10px;">${safeText(q.passage)}</div>`;
+            }
             
             if (q.imageUrl) {
                 cardHtml += `<div style="text-align:center; margin:15px 0;"><img src="${q.imageUrl}" style="max-width:100%; border-radius:5px; border:1px solid #ddd;"></div>`;
@@ -499,6 +530,7 @@ function showResults() {
 
 function startWrongRetry() {
     isRetryMode = true;
+    retryAnswers = []; 
     initExamUI();
     document.getElementById('penToolBar').style.display = 'flex';
 }
@@ -507,5 +539,5 @@ function togglePassage() {
     const content = document.getElementById('passageContent');
     content.classList.toggle('collapsed');
     document.getElementById('togglePassageBtn').innerText = content.classList.contains('collapsed') ? "지문 펴기 ▼" : "지문 접기 ▲";
-    setTimeout(resizeAllCanvases, 350); // 접고 펴는 애니메이션(0.3s) 후 캔버스 크기 재조정
+    setTimeout(resizeAllCanvases, 350); 
 }
