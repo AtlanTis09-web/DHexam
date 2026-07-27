@@ -104,6 +104,17 @@ var examListInfo = {
     { "year": 2026, "semester": 1, "grade": 2, "subject": "영미문학읽기", "examType": "중간고사", "file": "2026_1_mid_englit.js", "dataName": "exam_2026_1_mid_englit" },
     { "year": 2026, "semester": 1, "grade": 2, "subject": "영어Ⅰ", "examType": "중간고사", "file": "2026_1_mid_english1.js", "dataName": "exam_2026_1_mid_english1" },
     { "year": 2026, "semester": 1, "grade": 2, "subject": "윤리와 사상", "examType": "중간고사", "file": "2026_1_mid_ethics.js", "dataName": "exam_2026_1_mid_ethics" },
-    { "year": 2026, "semester": 1, "grade": 2, "subject": "일본어", "examType": "중간고사", "file": "2026_1_mid_japanese.js", "dataName": "exam_2026_1_mid_japanese" }
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "일본어", "examType": "중간고사", "file": "2026_1_mid_japanese.js", "dataName": "exam_2026_1_mid_japanese" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "중국 문화", "examType": "중간고사", "file": "2026_1_mid_chinese_culture.js", "dataName": "exam_2026_1_mid_chinese_culture" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "지구과학", "examType": "중간고사", "file": "2026_1_mid_earthscience.js", "dataName": "exam_2026_1_mid_earthscience" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "한국지리탐구", "examType": "중간고사", "file": "2026_1_mid_geography.js", "dataName": "exam_2026_1_mid_geography" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "한문", "examType": "중간고사", "file": "2026_1_mid_hanmun.js", "dataName": "exam_2026_1_mid_hanmun" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "화학", "examType": "중간고사", "file": "2026_1_mid_chemistry.js", "dataName": "exam_2026_1_mid_chemistry" },
+
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "문학", "examType": "기말고사", "file": "2026_1_fin_literature.js", "dataName": "exam_2026_1_fin_literature" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "영어Ⅰ", "examType": "기말고사", "file": "2026_1_fin_algebra.js", "dataName": "exam_2026_1_fin_algebra" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "물리학", "examType": "기말고사", "file": "2026_1_fin_physics.js", "dataName": "exam_2026_1_fin_physics" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "사회와문화", "examType": "기말고사", "file": "2026_1_fin_society_culture.js", "dataName": "exam_2026_1_fin_society_culture" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "생명과학", "examType": "기말고사", "file": "2026_1_fin_biology.js", "dataName": "exam_2026_1_fin_biology" },
   ]
 };
