@@ -6,23 +6,70 @@ let isAnswerChecked = false;
 let lastExamResults = [];      // 이번 시험의 문항별 채점 결과 (필터링용)
 let currentReviewFilter = 'all'; // 'all' | 'wrong'
 
-// 1. 초기화: 사이트 접속 시 examListInfo 변수에서 시험 목록 생성
+// 1. 초기화: 사이트 접속 시 examListInfo 변수에서 "학년" 드롭다운부터 채운다
 window.onload = function() {
-    const select = document.getElementById('examSelect');
-    select.innerHTML = '<option value="">풀이할 과목을 선택하세요</option>';
-
-    if (typeof examListInfo !== 'undefined') {
-        examListInfo.exams.forEach(exam => {
-            const option = document.createElement('option');
-            // 이제 복잡한 파일 경로 대신 데이터 변수명을 바로 값으로 씁니다
-            option.value = exam.dataName;
-            option.textContent = `${exam.year}년 ${exam.semester}학기 ${exam.grade}학년 ${exam.subject} ${exam.examType}`;
-            select.appendChild(option);
-        });
-    } else {
+    if (typeof examListInfo === 'undefined') {
         document.getElementById('headerTitle').innerText = "데이터 연결 오류";
+        return;
     }
+    populateGradeSelect();
 };
+
+function populateGradeSelect() {
+    const gradeSelect = document.getElementById('gradeSelect');
+    const grades = [...new Set(examListInfo.exams.map(e => e.grade))].sort((a, b) => a - b);
+
+    gradeSelect.innerHTML = '<option value="">1. 학년을 선택하세요</option>' +
+        grades.map(g => `<option value="${g}">${g}학년</option>`).join('');
+}
+
+// 1-1. 학년 선택 시 → 그 학년에 있는 과목만 추려서 "과목" 드롭다운 채우기
+function updateSubjects() {
+    const grade = document.getElementById('gradeSelect').value;
+    const subjectSelect = document.getElementById('subjectSelect');
+    const examSelect = document.getElementById('examSelect');
+
+    // 하위 단계 초기화
+    examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>';
+    examSelect.disabled = true;
+
+    if (!grade) {
+        subjectSelect.innerHTML = '<option value="">2. 과목을 선택하세요</option>';
+        subjectSelect.disabled = true;
+        return;
+    }
+
+    const subjects = [...new Set(
+        examListInfo.exams
+            .filter(e => String(e.grade) === String(grade))
+            .map(e => e.subject)
+    )];
+
+    subjectSelect.innerHTML = '<option value="">2. 과목을 선택하세요</option>' +
+        subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    subjectSelect.disabled = false;
+}
+
+// 1-2. 과목 선택 시 → 그 학년+과목에 해당하는 시험(중간/기말, 연도 등)만 "시험" 드롭다운 채우기
+function updateExams() {
+    const grade = document.getElementById('gradeSelect').value;
+    const subject = document.getElementById('subjectSelect').value;
+    const examSelect = document.getElementById('examSelect');
+
+    if (!subject) {
+        examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>';
+        examSelect.disabled = true;
+        return;
+    }
+
+    const exams = examListInfo.exams.filter(e =>
+        String(e.grade) === String(grade) && e.subject === subject
+    );
+
+    examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>' +
+        exams.map(e => `<option value="${e.dataName}">${e.year}년 ${e.semester}학기 ${e.examType}</option>`).join('');
+    examSelect.disabled = false;
+}
 
 // 2. 시험 시작 버튼 클릭 시
 function startExam() {
