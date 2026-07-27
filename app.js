@@ -1,543 +1,357 @@
 let currentQuizData = null;
 let currentIndex = 0;
 let userAnswers = [];
-let retryAnswers = []; 
-let isAnswerChecked = false; 
+let isAnswerChecked = false;
 
-let wrongQuestionsQueue = []; 
-let isRetryMode = false;
+let lastExamResults = [];      // 이번 시험의 문항별 채점 결과 (필터링용)
+let currentReviewFilter = 'all'; // 'all' | 'wrong'
 
-// 필기 및 형광펜 모드 변수
-let currentMode = 'scroll'; 
-let drawings = {}; 
-let canvasPassage, ctxPassage, canvasQuestion, ctxQuestion;
-
-function safeText(text) {
-    if (!text) return "";
-    let result = text.replace(/<보기>/g, '&lt;보기&gt;').replace(/<보 기>/g, '&lt;보 기&gt;');
-    result = result.replace(/\n/g, '<br>');
-    return result;
-}
-
+// 1. 초기화: 사이트 접속 시 examListInfo 변수에서 시험 목록 생성
 window.onload = function() {
-    initAllCanvases();
-    
-    const savedDrawings = localStorage.getItem('master_drawings');
-    if (savedDrawings) drawings = JSON.parse(savedDrawings);
+    const select = document.getElementById('examSelect');
+    select.innerHTML = '<option value="">풀이할 과목을 선택하세요</option>';
 
-    const gradeSelect = document.getElementById('gradeSelect');
     if (typeof examListInfo !== 'undefined') {
-        const grades = [...new Set(examListInfo.exams.map(exam => exam.grade))].sort();
-        grades.forEach(grade => {
+        examListInfo.exams.forEach(exam => {
             const option = document.createElement('option');
-            option.value = grade; option.textContent = `${grade}학년`;
-            gradeSelect.appendChild(option);
+            // 이제 복잡한 파일 경로 대신 데이터 변수명을 바로 값으로 씁니다
+            option.value = exam.dataName;
+            option.textContent = `${exam.year}년 ${exam.semester}학기 ${exam.grade}학년 ${exam.subject} ${exam.examType}`;
+            select.appendChild(option);
         });
     } else {
-        document.getElementById('headerTitle').innerText = "목록 데이터 오류";
+        document.getElementById('headerTitle').innerText = "데이터 연결 오류";
     }
 };
 
-function updateSubjects() {
-    const grade = document.getElementById('gradeSelect').value;
-    const subjectSelect = document.getElementById('subjectSelect');
-    const examSelect = document.getElementById('examSelect');
-    
-    subjectSelect.innerHTML = '<option value="">2. 과목을 선택하세요</option>';
-    examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>';
-    examSelect.disabled = true;
-
-    if (!grade) { subjectSelect.disabled = true; return; }
-
-    const subjects = [...new Set(examListInfo.exams.filter(exam => String(exam.grade) === String(grade)).map(exam => exam.subject))].sort();
-    subjects.forEach(subject => {
-        const option = document.createElement('option');
-        option.value = subject; option.textContent = subject;
-        subjectSelect.appendChild(option);
-    });
-    subjectSelect.disabled = false; 
-}
-
-function updateExams() {
-    const grade = document.getElementById('gradeSelect').value;
-    const subject = document.getElementById('subjectSelect').value;
-    const examSelect = document.getElementById('examSelect');
-    
-    examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>';
-    if (!subject) { examSelect.disabled = true; return; }
-
-    let filteredExams = examListInfo.exams.filter(exam => String(exam.grade) === String(grade) && exam.subject === subject);
-    filteredExams.sort((a, b) => b.year - a.year || b.semester - a.semester);
-
-    filteredExams.forEach(exam => {
-        const option = document.createElement('option');
-        option.value = exam.dataName; 
-        option.textContent = `${exam.year}년 ${exam.semester}학기 ${exam.examType}`;
-        examSelect.appendChild(option);
-    });
-    examSelect.disabled = false; 
-}
-
+// 2. 시험 시작 버튼 클릭 시
 function startExam() {
-    const dataName = document.getElementById('examSelect').value;
-    if (!dataName) { alert("시험을 최종적으로 선택해주세요!"); return; }
+    const select = document.getElementById('examSelect');
+    const dataName = select.value;
 
+    if (!dataName) {
+        alert("목록에서 시험을 선택해주세요!");
+        return;
+    }
+
+    // ★ HTML에서 이미 불러와진 변수를 그냥 바로 꺼내 씁니다. (에러 원천 차단)
     currentQuizData = window[dataName];
-    if (!currentQuizData) { alert("데이터를 찾을 수 없습니다."); return; }
 
-    isRetryMode = false;
-    document.getElementById('penToolBar').style.display = 'flex';
-    initExamUI();
-}
+    if (!currentQuizData) {
+        alert("데이터를 찾을 수 없습니다!\n파일이 UTF-8로 저장되었는지 다시 한번 확인해주세요.");
+        return;
+    }
 
-function initExamUI() {
+    // 화면 전환
     document.getElementById('selectionScreen').style.display = 'none';
-    document.getElementById('resultContainer').style.display = 'none';
     document.getElementById('quizContainer').style.display = 'flex';
-    
+
     const info = currentQuizData.examInfo;
-    const fullExamTitle = `${info.year}학년도 ${info.semester}학기 ${info.subject} ${info.examType}`;
-    document.getElementById('headerTitle').innerText = isRetryMode ? `🔥 [오답 복습] ${fullExamTitle}` : fullExamTitle;
-    
+    document.getElementById('headerTitle').innerText = `${info.year}학년도 ${info.semester}학기 ${info.schoolName} ${info.subject}`;
+
     currentIndex = 0;
-    if (!isRetryMode) { userAnswers = []; }
+    userAnswers = [];
     renderQuestion();
 }
 
-// ==========================================
-// ★ 문제 렌더링 및 하단 여백 자동 생성
-// ==========================================
+// 3. 문제 화면 그리기
 function renderQuestion() {
     isAnswerChecked = false;
-    
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    
+    const q = currentQuizData.questions[currentIndex];
+
     const passageArea = document.getElementById('passageArea');
     if (q.linkedPassageId && currentQuizData.sharedPassages[q.linkedPassageId]) {
-        document.getElementById('passageContent').innerHTML = safeText(currentQuizData.sharedPassages[q.linkedPassageId]);
+        document.getElementById('passageContent').innerHTML = currentQuizData.sharedPassages[q.linkedPassageId];
         passageArea.style.display = 'flex';
     } else {
         passageArea.style.display = 'none';
     }
 
-    const imgContainer = document.getElementById('imageContainer');
-    if (q.imageUrl) {
-        document.getElementById('questionImage').src = q.imageUrl;
-        imgContainer.style.display = 'block';
-    } else {
-        imgContainer.style.display = 'none';
-    }
-
-    // 중복 번호 방지를 위해 번호 자동 삽입 로직 제거
-    document.getElementById('questionTitle').innerHTML = `${safeText(q.questionText)} <span style="font-size:14px; color:#666; font-weight:normal;">[${q.score}점]</span>`;
-    
     const inlineContainer = document.getElementById('inlinePassageContainer');
     if (q.passage) {
-        inlineContainer.innerHTML = `<div class="inline-passage">${safeText(q.passage)}</div>`;
+        inlineContainer.innerHTML = `<div class="inline-passage">${q.passage}</div>`;
         inlineContainer.style.display = 'block';
     } else {
         inlineContainer.style.display = 'none';
     }
 
-    const optContainer = document.getElementById('optionsContainer');
-    const subContainer = document.getElementById('subjectiveContainer');
-    const subInput = document.getElementById('subjectiveInput');
-    
-    let existingAns = null;
-    if (!isRetryMode) {
-        existingAns = userAnswers.find(a => a.qIndex === currentIndex);
+    document.getElementById('questionTitle').innerHTML = `${q.questionNum}. ${q.questionText} <span style="font-size:14px; color:#666;">[${q.score}점]</span>`;
+
+    const optionsContainer = document.getElementById('optionsContainer');
+    optionsContainer.innerHTML = '';
+    q.options.forEach((opt, idx) => {
+        const label = document.createElement('label');
+        label.className = 'option-label';
+        label.innerHTML = `<input type="radio" name="opt" value="${idx}" onclick="checkAnswer(${idx})"> ${opt}`;
+        optionsContainer.appendChild(label);
+    });
+
+    const expBox = document.getElementById('explanationBox');
+    if (expBox) expBox.remove();
+
+    const nextBtn = document.querySelector('.question-area .primary-btn');
+    if (currentIndex === currentQuizData.questions.length - 1) {
+        nextBtn.innerText = '마지막 문제 ❯';
     } else {
-        existingAns = retryAnswers.find(a => a.qIndex === currentIndex);
+        nextBtn.innerText = '다음 문제 ❯';
     }
-
-    if (q.options && q.options.length > 0) {
-        optContainer.style.display = 'block';
-        subContainer.style.display = 'none';
-        optContainer.innerHTML = '';
-        q.options.forEach((opt, idx) => {
-            const label = document.createElement('label');
-            label.className = 'option-label';
-            label.innerHTML = `<input type="radio" name="opt" value="${idx}" onclick="checkAnswer(${idx})"> ${safeText(opt)}`;
-            optContainer.appendChild(label);
-        });
-    } else {
-        optContainer.style.display = 'none';
-        subContainer.style.display = 'block';
-        subInput.value = '';
-        subInput.disabled = false;
-        subInput.onkeypress = function(e) { if(e.key === 'Enter') checkSubjective(); };
-    }
-
-    // ★ 수학 과목일 때 풀이용 빈 공간(하얀 여백) 넉넉하게 추가
-    let mathSpacer = document.getElementById('mathSpacer');
-    if (!mathSpacer) {
-        mathSpacer = document.createElement('div');
-        mathSpacer.id = 'mathSpacer';
-        mathSpacer.style.height = '350px'; // 넉넉한 350px 빈 도화지 공간
-        const btnGroup = document.querySelector('.btn-group');
-        if (btnGroup) {
-            document.querySelector('.question-area').insertBefore(mathSpacer, btnGroup);
-        }
-    }
-    
-    if (currentQuizData.examInfo.subject.includes("수학")) {
-        mathSpacer.style.display = 'block';
-    } else {
-        mathSpacer.style.display = 'none';
-    }
-
-    if (document.getElementById('explanationBox')) document.getElementById('explanationBox').remove();
-    
-    const prevBtn = document.getElementById('prevBtn');
-    if (prevBtn) prevBtn.style.display = (currentIndex === 0) ? 'none' : 'block';
-
-    const nextBtn = document.getElementById('nextBtn');
-    const totalCount = isRetryMode ? wrongQuestionsQueue.length : currentQuizData.questions.length;
-    nextBtn.innerText = (currentIndex === totalCount - 1) ? '결과 보기 ❯' : '다음 문제 ❯';
-    nextBtn.style.backgroundColor = '#5c8d89';
-
-    if (existingAns) {
-        isAnswerChecked = true;
-        if (q.options && q.options.length > 0) {
-            const radios = document.querySelectorAll('input[name="opt"]');
-            if (radios[existingAns.selected]) radios[existingAns.selected].checked = true;
-            radios.forEach(r => r.disabled = true);
-        } else {
-            subInput.value = existingAns.selected;
-            subInput.disabled = true;
-        }
-        const correctLabel = (q.options && q.options.length > 0) ? q.options[q.correctAnswer].split(' ')[0] : q.correctAnswer; 
-        showFeedback(existingAns.correct, q.explanation, correctLabel);
-    }
-
-    setTimeout(() => {
-        resizeAllCanvases();
-        loadCurrentDrawings();
-    }, 100);
+    nextBtn.style.backgroundColor = '#3498db';
 }
 
-function goPrev() {
-    if (currentIndex > 0) {
-        currentIndex--;
-        renderQuestion();
-        document.querySelector('.question-area').scrollTop = 0;
+// 4. 모바일 지문 접기 토글
+function togglePassage() {
+    const content = document.getElementById('passageContent');
+    const btn = document.getElementById('togglePassageBtn');
+    if (content.classList.contains('collapsed')) {
+        content.classList.remove('collapsed');
+        btn.innerText = '지문 접기 ▲';
+    } else {
+        content.classList.add('collapsed');
+        btn.innerText = '지문 펴기 ▼';
     }
 }
 
-function goNext() {
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    
-    if (!isAnswerChecked && (!q.options || q.options.length === 0)) {
-        const inputVal = document.getElementById('subjectiveInput').value.trim();
-        if (inputVal) {
-            checkSubjective(); 
-            return; 
-        }
-    }
-    
-    const totalCount = isRetryMode ? wrongQuestionsQueue.length : currentQuizData.questions.length;
-    
-    if (currentIndex === totalCount - 1) { 
-        if (!isAnswerChecked && !confirm("마지막 문제입니다. 풀지 않은 문제는 오답 처리됩니다. 결과를 보시겠습니까?")) {
-            return;
-        }
-        showResults(); 
-    } else { 
-        currentIndex++; 
-        renderQuestion(); 
-        document.querySelector('.question-area').scrollTop = 0; 
-    }
-}
-
+// 5. 선지 클릭 시 즉시 정답 확인
 function checkAnswer(selectedVal) {
     if (isAnswerChecked) return;
     isAnswerChecked = true;
 
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
+    const q = currentQuizData.questions[currentIndex];
     const isCorrect = (selectedVal === q.correctAnswer);
-    
-    if (!isRetryMode) {
-        userAnswers.push({ qIndex: currentIndex, selected: selectedVal, correct: isCorrect });
-    } else {
-        retryAnswers.push({ qIndex: currentIndex, selected: selectedVal, correct: isCorrect });
-    }
+
+    userAnswers.push({ qIndex: currentIndex, selected: selectedVal });
 
     document.querySelectorAll('input[name="opt"]').forEach(r => r.disabled = true);
-    const correctLabel = q.options[q.correctAnswer].split(' ')[0]; 
-    showFeedback(isCorrect, q.explanation, correctLabel);
-}
 
-function checkSubjective() {
-    if (isAnswerChecked) return;
-    const inputVal = document.getElementById('subjectiveInput').value.trim();
-    if (!inputVal) return;
-    
-    isAnswerChecked = true;
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    const isCorrect = (inputVal.replace(/\s/g, "") === String(q.correctAnswer).replace(/\s/g, ""));
-    
-    if (!isRetryMode) {
-        userAnswers.push({ qIndex: currentIndex, selected: inputVal, correct: isCorrect });
-    } else {
-        retryAnswers.push({ qIndex: currentIndex, selected: inputVal, correct: isCorrect });
-    }
-
-    document.getElementById('subjectiveInput').disabled = true;
-    showFeedback(isCorrect, q.explanation, q.correctAnswer);
-}
-
-function showFeedback(isCorrect, explanation, realAns) {
     let expBox = document.createElement('div');
     expBox.id = 'explanationBox';
     expBox.className = 'explanation';
     expBox.style.marginTop = '20px';
     expBox.style.borderLeft = isCorrect ? '5px solid #27ae60' : '5px solid #e74c3c';
-    
-    let resultTitle = isCorrect ? '<h3 style="color:#27ae60;">✅ 정답입니다!</h3>' : `<h3 style="color:#e74c3c;">❌ 오답입니다. (정답: ${realAns})</h3>`;
-    
-    expBox.innerHTML = `
-        ${resultTitle}
-        <p style="margin-top:10px;"><strong>💡 해설:</strong><br>${safeText(explanation)}</p>
-    `;
-    
-    document.querySelector('.question-area').insertBefore(expBox, document.querySelector('.btn-group'));
-    
+
     if (isCorrect) {
-        document.querySelector('.question-area .primary-btn').style.backgroundColor = '#27ae60';
-    }
-    setTimeout(resizeAllCanvases, 50); 
-}
-
-// ==========================================
-// 툴바 및 캔버스 관련 로직 (전체 화면 필기만 남김)
-// ==========================================
-function setMode(mode) {
-    currentMode = mode;
-    document.getElementById('modeScrollBtn').classList.remove('active');
-    document.getElementById('modePenBtn').classList.remove('active');
-    document.getElementById('modeHighlighterBtn').classList.remove('active');
-
-    if (mode === 'scroll') {
-        document.getElementById('modeScrollBtn').classList.add('active');
-        document.body.classList.remove('pen-mode-active');
+        expBox.innerHTML = `<h3 style="color:#27ae60;">✅ 정답입니다!</h3><p style="margin-top:10px;"><strong>💡 해설:</strong><br>${q.explanation}</p>`;
     } else {
-        if (mode === 'pen') document.getElementById('modePenBtn').classList.add('active');
-        if (mode === 'highlighter') document.getElementById('modeHighlighterBtn').classList.add('active');
-        document.body.classList.add('pen-mode-active');
+        const correctText = q.options[q.correctAnswer].split(' ')[0];
+        expBox.innerHTML = `<h3 style="color:#e74c3c;">❌ 오답입니다. (정답: ${correctText})</h3><p style="margin-top:10px;"><strong>💡 해설:</strong><br>${q.explanation}</p>`;
+    }
+
+    document.querySelector('.question-area').insertBefore(expBox, document.querySelector('.btn-group'));
+
+    const nextBtn = document.querySelector('.question-area .primary-btn');
+    if (currentIndex === currentQuizData.questions.length - 1) {
+        nextBtn.innerText = '최종 결과 보기 ❯';
+        nextBtn.style.backgroundColor = '#27ae60';
     }
 }
 
-function initAllCanvases() {
-    canvasPassage = document.getElementById('passageCanvas');
-    ctxPassage = canvasPassage.getContext('2d');
-    canvasQuestion = document.getElementById('questionCanvas');
-    ctxQuestion = canvasQuestion.getContext('2d');
+// 6. 다음 문제로 이동
+function goNext() {
+    if (!isAnswerChecked) {
+        alert("정답을 먼저 선택해주세요!");
+        return;
+    }
 
-    setupDrawing(canvasPassage, ctxPassage, true);
-    setupDrawing(canvasQuestion, ctxQuestion, true);
-}
-
-function setupDrawing(canvas, ctx, requirePenMode = true) {
-    let drawing = false;
-
-    const start = (e) => { 
-        if (requirePenMode && currentMode === 'scroll') return; 
-        drawing = true; 
-        draw(e); 
-        if (requirePenMode) e.preventDefault(); 
-    };
-    const end = (e) => { 
-        if (!drawing) return;
-        drawing = false; 
-        ctx.beginPath(); 
-        if (requirePenMode) saveCurrentDrawings(); 
-    };
-    const draw = (e) => {
-        if (!drawing || (requirePenMode && currentMode === 'scroll')) return;
-        if (requirePenMode) e.preventDefault();
-        
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-
-        if (requirePenMode && currentMode === 'highlighter') {
-            ctx.lineWidth = 18; 
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = 'rgba(150, 255, 100, 0.4)'; 
-        } else {
-            ctx.lineWidth = 2; 
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = requirePenMode ? '#e74c3c' : '#2c3e50'; 
-        }
-
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-    };
-
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', end);
-    canvas.addEventListener('mouseleave', end);
-
-    canvas.addEventListener('touchstart', start, {passive: false});
-    canvas.addEventListener('touchmove', draw, {passive: false});
-    canvas.addEventListener('touchend', end);
-}
-
-function saveCurrentDrawings() {
-    if (!currentQuizData) return;
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    const qKey = currentQuizData.examInfo.examId + "_" + q.questionNum;
-    
-    drawings[qKey] = {
-        passage: canvasPassage.toDataURL(),
-        question: canvasQuestion.toDataURL()
-    };
-    localStorage.setItem('master_drawings', JSON.stringify(drawings));
-}
-
-function loadCurrentDrawings() {
-    const q = isRetryMode ? wrongQuestionsQueue[currentIndex] : currentQuizData.questions[currentIndex];
-    const qKey = currentQuizData.examInfo.examId + "_" + q.questionNum;
-    
-    ctxPassage.clearRect(0, 0, canvasPassage.width, canvasPassage.height);
-    ctxQuestion.clearRect(0, 0, canvasQuestion.width, canvasQuestion.height);
-    
-    if (drawings[qKey]) {
-        if (drawings[qKey].passage) {
-            const imgP = new Image();
-            imgP.onload = () => ctxPassage.drawImage(imgP, 0, 0);
-            imgP.src = drawings[qKey].passage;
-        }
-        if (drawings[qKey].question) {
-            const imgQ = new Image();
-            imgQ.onload = () => ctxQuestion.drawImage(imgQ, 0, 0);
-            imgQ.src = drawings[qKey].question;
-        }
+    if (currentIndex === currentQuizData.questions.length - 1) {
+        showResults();
+    } else {
+        currentIndex++;
+        renderQuestion();
+        document.querySelector('.question-area').scrollTop = 0;
     }
 }
 
-function clearFullCanvas() {
-    if (!confirm("이 문제에 작성한 펜 필기를 모두 지울까요?")) return;
-    ctxPassage.clearRect(0, 0, canvasPassage.width, canvasPassage.height);
-    ctxQuestion.clearRect(0, 0, canvasQuestion.width, canvasQuestion.height);
-    saveCurrentDrawings(); 
-}
-
-function resizeAllCanvases() {
-    if(canvasPassage && canvasPassage.parentElement) {
-        canvasPassage.width = canvasPassage.parentElement.clientWidth;
-        canvasPassage.height = canvasPassage.parentElement.scrollHeight;
-    }
-    if(canvasQuestion && canvasQuestion.parentElement) {
-        canvasQuestion.width = canvasQuestion.parentElement.clientWidth;
-        canvasQuestion.height = canvasQuestion.parentElement.scrollHeight;
-    }
-}
-
-window.addEventListener('resize', resizeAllCanvases);
-
-// ==========================================
-// ★ 결과 창 보기 로직
-// ==========================================
+// 7. 최종 채점 결과 및 오답 노트 (시험 직후 화면)
 function showResults() {
     document.getElementById('quizContainer').style.display = 'none';
-    document.getElementById('penToolBar').style.display = 'none';
     const resultContainer = document.getElementById('resultContainer');
     resultContainer.style.display = 'block';
 
     let myScore = 0;
     let maxScore = 0;
-    
-    if (!isRetryMode) {
-        wrongQuestionsQueue = [];
-        currentQuizData.questions.forEach((q, i) => {
-            maxScore += q.score;
-            const ans = userAnswers.find(a => a.qIndex === i);
-            if (ans && ans.correct) {
-                myScore += q.score;
-            } else {
-                wrongQuestionsQueue.push(q);
-            }
-        });
-    }
+    lastExamResults = [];
 
-    const reviewNotes = document.getElementById('reviewNotes');
-    reviewNotes.innerHTML = '';
+    currentQuizData.questions.forEach((q, i) => {
+        maxScore += q.score;
+        const uAns = userAnswers.find(ans => ans.qIndex === i).selected;
+        const isCorrect = (uAns === q.correctAnswer);
 
-    if (wrongQuestionsQueue.length > 0) {
-        reviewNotes.innerHTML = `
-            <div style="text-align:center; padding:20px; background:#fff3f3; border-radius:10px; margin-bottom:20px;">
-                <p style="font-size:18px; color:#333;">아직 정복하지 못한 문제가 <b>${wrongQuestionsQueue.length}개</b> 있습니다!</p>
-                <button class="primary-btn" onclick="startWrongRetry()" style="margin-top:15px; background-color:#e74c3c;">🔥 틀린 문제 다시 풀기</button>
-            </div>
-            <h3 style="margin-top:30px; margin-bottom:15px; border-bottom:2px solid #ccc; padding-bottom:5px; color:#444;">상세 오답 노트</h3>
-        `;
-        
-        wrongQuestionsQueue.forEach((q) => {
-            const ansObj = userAnswers.find(a => a.qIndex === currentQuizData.questions.indexOf(q));
-            let myAnsText = "선택/입력 안 함 (건너뜀)";
-            let realAnsText = q.correctAnswer;
-            
-            if (ansObj && ansObj.selected !== undefined) {
-                if (q.options && q.options.length > 0) {
-                    myAnsText = q.options[ansObj.selected]; 
-                    realAnsText = q.options[q.correctAnswer];
-                } else {
-                    myAnsText = ansObj.selected; 
-                }
-            }
+        if (isCorrect) myScore += q.score;
 
-            let cardHtml = `<div class="wrong-card" style="margin-bottom:20px; border:1px solid #ef9a9a; padding:20px; border-radius:12px; background:#ffebee; box-shadow:0 2px 8px rgba(0,0,0,0.05);">`;
-            cardHtml += `<h3 style="color:#e74c3c; margin-bottom:10px;">${safeText(q.questionText)} <span style="font-size:14px; color:#666; font-weight:normal;">[${q.score}점]</span></h3>`;
-            
-            if (q.passage) {
-                cardHtml += `<div class="inline-passage" style="margin-top:10px;">${safeText(q.passage)}</div>`;
-            }
-            
-            if (q.imageUrl) {
-                cardHtml += `<div style="text-align:center; margin:15px 0;"><img src="${q.imageUrl}" style="max-width:100%; border-radius:5px; border:1px solid #ddd;"></div>`;
-            }
-            
-            cardHtml += `<div class="ans-review" style="font-size:15px; margin-bottom:15px; padding-top:10px; border-top:1px dashed #ffcdd2;">`;
-            cardHtml += `<p class="my-ans" style="color:#c0392b; margin-bottom:5px;">내 선택: ${safeText(myAnsText)}</p>`;
-            cardHtml += `<p class="real-ans" style="color:#27ae60; font-weight:bold;">정답: ${safeText(realAnsText)}</p>`;
-            cardHtml += `</div>`;
-            cardHtml += `<div class="explanation" style="background:#fff; padding:15px; border-radius:8px; font-size:14px; border:1px solid #ffcdd2;"><strong>💡 해설:</strong><br>${safeText(q.explanation)}</div>`;
-            cardHtml += `</div>`;
+        lastExamResults.push({ q, uAns, isCorrect });
+    });
 
-            reviewNotes.innerHTML += cardHtml;
-        });
+    document.getElementById('finalScoreText').innerText = `${myScore.toFixed(1)} / ${maxScore.toFixed(1)} 점`;
 
-    } else {
-        reviewNotes.innerHTML = `
-            <div style="text-align:center; padding:30px; background:#e8f5e9; border-radius:12px; margin-bottom:20px; border:1px solid #a5d6a7;">
-                <h2 style="color:#27ae60;">🎉 만점입니다! 완벽하게 마스터하셨습니다!</h2>
-            </div>
-        `;
-    }
+    // 이번 시험의 오답을 누적 오답노트(localStorage)에 저장
+    saveWrongAnswersToHistory(lastExamResults);
 
-    if (!isRetryMode) {
-        document.getElementById('finalScoreText').innerText = `${myScore.toFixed(1)} / ${maxScore.toFixed(1)} 점`;
-    } else {
-        document.getElementById('finalScoreText').innerText = `오답 복습 완료!`;
-    }
-    
+    // 필터 초기화 후 전체 보기로 렌더링
+    currentReviewFilter = 'all';
+    updateFilterButtons();
+    renderReviewNotes();
+
     window.scrollTo(0, 0);
 }
 
-function startWrongRetry() {
-    isRetryMode = true;
-    retryAnswers = []; 
-    initExamUI();
-    document.getElementById('penToolBar').style.display = 'flex';
+// 7-1. 결과 화면 카드 렌더링 (필터에 따라 전체/오답만)
+function renderReviewNotes() {
+    const reviewNotes = document.getElementById('reviewNotes');
+    reviewNotes.innerHTML = '';
+
+    const listToShow = currentReviewFilter === 'wrong'
+        ? lastExamResults.filter(r => !r.isCorrect)
+        : lastExamResults;
+
+    if (currentReviewFilter === 'wrong' && listToShow.length === 0) {
+        reviewNotes.innerHTML = `<p style="text-align:center; padding:30px; color:#5c8d89; font-weight:bold;">🎉 틀린 문제가 없습니다!</p>`;
+        return;
+    }
+
+    listToShow.forEach(({ q, uAns, isCorrect }) => {
+        let cardHtml = `<div class="${isCorrect ? 'correct-card' : 'wrong-card'}">`;
+        cardHtml += `<h3>${q.questionNum}번 ${isCorrect ? '✅ 정답' : '❌ 오답'} (${q.score}점)</h3>`;
+        cardHtml += `<p style="margin-top:10px; font-weight:bold;">${q.questionText}</p>`;
+
+        cardHtml += `<div class="ans-review">`;
+        if (!isCorrect) {
+            cardHtml += `<p class="my-ans">내 선택: ${q.options[uAns]}</p>`;
+        }
+        cardHtml += `<p class="real-ans">정답: ${q.options[q.correctAnswer]}</p>`;
+        cardHtml += `</div>`;
+
+        cardHtml += `<div class="explanation"><strong>💡 해설:</strong><br>${q.explanation}</div>`;
+        cardHtml += `</div>`;
+
+        reviewNotes.innerHTML += cardHtml;
+    });
 }
 
-function togglePassage() {
-    const content = document.getElementById('passageContent');
-    content.classList.toggle('collapsed');
-    document.getElementById('togglePassageBtn').innerText = content.classList.contains('collapsed') ? "지문 펴기 ▼" : "지문 접기 ▲";
-    setTimeout(resizeAllCanvases, 350); 
+// 7-2. 필터 버튼 클릭
+function setReviewFilter(mode) {
+    currentReviewFilter = mode;
+    updateFilterButtons();
+    renderReviewNotes();
+}
+
+function updateFilterButtons() {
+    const allBtn = document.getElementById('filterAllBtn');
+    const wrongBtn = document.getElementById('filterWrongBtn');
+    if (!allBtn || !wrongBtn) return;
+    allBtn.classList.toggle('filter-active', currentReviewFilter === 'all');
+    wrongBtn.classList.toggle('filter-active', currentReviewFilter === 'wrong');
+}
+
+// =====================================================
+// 누적 오답노트 (여러 시험에 걸쳐 localStorage에 저장)
+// =====================================================
+
+const WRONG_HISTORY_KEY = 'wrongAnswerHistory';
+
+// exam_list.js에서 한글 과목명을 찾아온다 (examInfo.subject는 영문 코드이므로)
+function getSubjectDisplayName(examId, fallback) {
+    if (typeof examListInfo === 'undefined') return fallback;
+    const match = examListInfo.exams.find(e => e.dataName === ('exam_' + examId));
+    return match ? match.subject : fallback;
+}
+
+function loadWrongHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(WRONG_HISTORY_KEY) || '[]');
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveWrongAnswersToHistory(results) {
+    const info = currentQuizData.examInfo;
+    const subjectDisplay = getSubjectDisplayName(info.examId, info.subject);
+
+    let history = loadWrongHistory();
+
+    // 같은 시험(examId) 재응시 시, 이전 기록은 지우고 최신 결과로 교체
+    history = history.filter(item => item.examId !== info.examId);
+
+    results.filter(r => !r.isCorrect).forEach(({ q, uAns }) => {
+        history.push({
+            examId: info.examId,
+            year: info.year,
+            semester: info.semester,
+            grade: info.grade,
+            examType: info.examType,
+            subject: subjectDisplay,
+            questionNum: q.questionNum,
+            questionText: q.questionText,
+            myAnswerText: q.options[uAns],
+            correctAnswerText: q.options[q.correctAnswer],
+            explanation: q.explanation,
+            score: q.score,
+            date: new Date().toISOString()
+        });
+    });
+
+    localStorage.setItem(WRONG_HISTORY_KEY, JSON.stringify(history));
+}
+
+// 메인 화면 "전체 오답노트 보기" 버튼
+function showWrongNoteHistory() {
+    document.getElementById('selectionScreen').style.display = 'none';
+    document.getElementById('wrongNoteContainer').style.display = 'flex';
+    populateWrongNoteSubjectFilter();
+    renderWrongNoteHistory();
+}
+
+function populateWrongNoteSubjectFilter() {
+    const history = loadWrongHistory();
+    const subjects = [...new Set(history.map(h => h.subject))];
+    const sel = document.getElementById('wrongNoteSubjectFilter');
+    const prevVal = sel.value || 'all';
+    sel.innerHTML = '<option value="all">전체 과목</option>' +
+        subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    if ([...sel.options].some(o => o.value === prevVal)) {
+        sel.value = prevVal;
+    }
+}
+
+function renderWrongNoteHistory() {
+    const history = loadWrongHistory();
+    const filterVal = document.getElementById('wrongNoteSubjectFilter').value;
+    const filtered = (filterVal === 'all') ? history : history.filter(h => h.subject === filterVal);
+
+    document.getElementById('wrongNoteCount').innerText = `누적 오답 ${filtered.length}개`;
+
+    const listEl = document.getElementById('wrongNoteList');
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = `<p style="text-align:center; padding:30px; color:#999;">저장된 오답이 없습니다. 시험을 풀면 여기에 자동으로 쌓여요.</p>`;
+        return;
+    }
+
+    // 최신 시험 순으로 정렬
+    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    listEl.innerHTML = filtered.map(item => `
+        <div class="wrong-card">
+            <h3>${item.year}년 ${item.semester}학기 ${item.subject} ${item.examType} · ${item.questionNum}번 (${item.score}점)</h3>
+            <p style="margin-top:10px; font-weight:bold;">${item.questionText}</p>
+            <div class="ans-review">
+                <p class="my-ans">내 선택: ${item.myAnswerText}</p>
+                <p class="real-ans">정답: ${item.correctAnswerText}</p>
+            </div>
+            <div class="explanation"><strong>💡 해설:</strong><br>${item.explanation}</div>
+        </div>
+    `).join('');
+}
+
+function clearWrongHistory() {
+    if (confirm('누적된 오답노트를 전부 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) {
+        localStorage.removeItem(WRONG_HISTORY_KEY);
+        populateWrongNoteSubjectFilter();
+        renderWrongNoteHistory();
+    }
+}
+
+function backToSelectionFromWrongNote() {
+    document.getElementById('wrongNoteContainer').style.display = 'none';
+    document.getElementById('selectionScreen').style.display = 'flex';
 }

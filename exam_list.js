@@ -70,6 +70,11 @@ var examListInfo = {
     { "year": 2025, "semester": 2, "grade": 1, "subject": "통합사회", "examType": "기말고사", "file": "2025_2_fin_social.js", "dataName": "exam_2025_2_fin_social" },
     { "year": 2025, "semester": 2, "grade": 1, "subject": "영어", "examType": "기말고사", "file": "2025_2_fin_english.js", "dataName": "exam_2025_2_fin_english" },
     { "year": 2025, "semester": 2, "grade": 1, "subject": "정보", "examType": "기말고사", "file": "2025_2_fin_information.js", "dataName": "exam_2025_2_fin_information" },
-    { "year": 2025, "semester": 2, "grade": 1, "subject": "기술가정", "examType": "기말고사", "file": "2025_2_fin_tech.js", "dataName": "exam_2025_2_fin_tech" }
+    { "year": 2025, "semester": 2, "grade": 1, "subject": "기술가정", "examType": "기말고사", "file": "2025_2_fin_tech.js", "dataName": "exam_2025_2_fin_tech" },
+
+    // ==========================================
+    // 2026년 1학기
+    // ==========================================
+    { "year": 2026, "semester": 1, "grade": 1, "subject": "국어", "examType": "중간고사", "file": "2026_1_mid_korean.js", "dataName": "exam_2026_1_mid_korean" }
   ]
 };

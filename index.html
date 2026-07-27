@@ -66,6 +66,8 @@
     <script src="2025_2_fin_english.js"></script>
     <script src="2025_2_fin_information.js"></script>
     <script src="2025_2_fin_tech.js"></script>
+
+    <script src="2026_1_mid_korean.js"></script>
 </head>
 <body>
 
@@ -87,6 +89,7 @@
             <select id="examSelect" disabled><option value="">3. 시험을 선택하세요</option></select>
         </div>
         <button class="primary-btn" style="width: 100%; margin-top: 25px;" onclick="startExam()">시험 시작</button>
+        <button class="secondary-btn" style="width: 100%; margin-top: 12px;" onclick="showWrongNoteHistory()">📕 전체 오답노트 보기</button>
     </div>
 
     <div class="quiz-container" id="quizContainer" style="display: none;">
@@ -127,9 +130,30 @@
             <h2>🎉 시험 종료!</h2>
             <h1 id="finalScoreText" style="font-size: 40px; margin-top: 10px;"></h1>
         </div>
+
+        <div class="review-filter-bar">
+            <button id="filterAllBtn" class="filter-btn filter-active" onclick="setReviewFilter('all')">전체 보기</button>
+            <button id="filterWrongBtn" class="filter-btn" onclick="setReviewFilter('wrong')">❌ 오답만 보기</button>
+        </div>
+
         <div id="reviewNotes"></div>
         <div style="text-align: center; margin-top: 30px;">
             <button class="primary-btn" onclick="location.reload()">메인으로 돌아가기 ↺</button>
+        </div>
+    </div>
+
+    <div class="result-container" id="wrongNoteContainer" style="display: none; flex-direction: column; max-width: 900px;">
+        <div class="score-board wrong-note-header">
+            <h2>📕 누적 오답노트</h2>
+            <div class="wrong-note-controls">
+                <select id="wrongNoteSubjectFilter" onchange="renderWrongNoteHistory()"></select>
+                <span id="wrongNoteCount"></span>
+            </div>
+        </div>
+        <div id="wrongNoteList" style="margin-top:20px;"></div>
+        <div style="text-align: center; margin-top: 30px; display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
+            <button class="secondary-btn" onclick="backToSelectionFromWrongNote()">← 메인으로</button>
+            <button class="secondary-btn" style="background-color:#e74c3c;" onclick="clearWrongHistory()">🗑️ 오답노트 전체 삭제</button>
         </div>
     </div>
 
