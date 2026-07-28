@@ -446,4 +446,3 @@ var exam_2024_1_mid_social = {
     }
   ]
 };
-```

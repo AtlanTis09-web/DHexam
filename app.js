@@ -324,6 +324,7 @@ function renderQuestion() {
     nextBtn.style.backgroundColor = '#3498db';
 
     // ★ 문제가 바뀌었으니 연습장 높이를 화면에 맞게 다시 계산하고, 캔버스도 새 크기로 맞춘 뒤 저장된 필기를 복원
+    undoStack = [];
     adjustScratchPadHeight();
     resizeAllCanvases();
     restoreDrawings(currentIndex);
@@ -376,6 +377,7 @@ function checkAnswer(selectedVal) {
     const isCorrect = (selectedVal === q.correctAnswer);
 
     userAnswers.push({ qIndex: currentIndex, selected: selectedVal });
+    saveQuestionToHistory(q, selectedVal, isCorrect);
 
     document.querySelectorAll('input[name="opt"]').forEach(r => r.disabled = true);
 
@@ -451,8 +453,7 @@ function showResults() {
 
     document.getElementById('finalScoreText').innerText = `${myScore.toFixed(1)} / ${maxScore.toFixed(1)} 점`;
 
-    // 이번 시험의 오답을 누적 오답노트(localStorage)에 저장
-    saveWrongAnswersToHistory(lastExamResults);
+    // 오답은 이미 checkAnswer()에서 문항마다 저장됐으므로 여기서 다시 저장하지 않음
 
     // 필터 초기화 후 전체 보기로 렌더링
     currentReviewFilter = 'all';
@@ -523,6 +524,23 @@ let drawingHandlersAttached = false;
 // 문항별 필기 임시 저장소 (이 세션 동안만 유지, 새로고침하면 초기화됨)
 let savedDrawings = {}; // { [questionIndex]: { passage: dataURL|null, question: dataURL|null } }
 
+// ★ 되돌리기(undo) 기록 - 획 하나 시작 전 캔버스 상태를 순서대로 쌓아둠 (문제 바뀌면 초기화)
+let undoStack = []; // [{ canvasId, dataUrl }]
+const UNDO_LIMIT = 30;
+
+function pushUndoSnapshot(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    undoStack.push({ canvasId, dataUrl: canvas.toDataURL() });
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+}
+
+function undoLastStroke() {
+    const last = undoStack.pop();
+    if (!last) return;
+    restoreCanvasFromDataUrl(last.canvasId, last.dataUrl);
+}
+
 function setMode(mode) {
     currentMode = mode;
     document.getElementById('quizContainer').classList.toggle('pen-mode-active', mode !== 'scroll');
@@ -563,18 +581,19 @@ function resizeAllCanvases() {
 
 function getEventPos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
-    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-    return { x: clientX - rect.left, y: clientY - rect.top };
+    return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
 }
 
+// ★ Pointer Events API 사용: 마우스 / 손가락 터치 / 애플펜슬 등 스타일러스를 한 번에 동일하게 처리
 function attachDrawingHandlers(canvas) {
     const start = (e) => {
         if (currentMode === 'scroll' || !canvas._ctx) return;
         isPointerDown = true;
+        pushUndoSnapshot(canvas.id);
         const pos = getEventPos(canvas, e);
         lastX = pos.x;
         lastY = pos.y;
+        if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
         e.preventDefault();
     };
 
@@ -603,19 +622,23 @@ function attachDrawingHandlers(canvas) {
         e.preventDefault();
     };
 
-    const end = () => { isPointerDown = false; };
+    const end = (e) => {
+        isPointerDown = false;
+        if (canvas.releasePointerCapture && e.pointerId != null && canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
+            canvas.releasePointerCapture(e.pointerId);
+        }
+    };
 
-    canvas.addEventListener('mousedown', start);
-    canvas.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', end);
-
-    canvas.addEventListener('touchstart', start, { passive: false });
-    canvas.addEventListener('touchmove', move, { passive: false });
-    canvas.addEventListener('touchend', end);
+    canvas.addEventListener('pointerdown', start);
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', end);
 }
 
 function initDrawingSystem() {
     resizeAllCanvases();
+    undoStack = [];
 
     if (drawingHandlersAttached) return; // 이벤트 리스너 중복 등록 방지
     const pCanvas = document.getElementById('passageCanvas');
@@ -632,11 +655,12 @@ function initDrawingSystem() {
     drawingHandlersAttached = true;
 }
 
-// "필기 지우기" 버튼: 지금 보고 있는 문제의 필기만 지움
+// "필기 지우기" 버튼: 지금 보고 있는 문제의 필기만 지움 (되돌리기로 복구 가능)
 function clearFullCanvas() {
     ['passageCanvas', 'questionCanvas'].forEach(id => {
         const canvas = document.getElementById(id);
         if (canvas && canvas._ctx) {
+            pushUndoSnapshot(id);
             canvas._ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     });
@@ -649,10 +673,14 @@ function snapshotCanvas(id) {
 }
 
 function restoreCanvasFromDataUrl(id, dataUrl) {
-    if (!dataUrl) return;
     const canvas = document.getElementById(id);
     if (!canvas || !canvas._ctx) return;
     const dpr = window.devicePixelRatio || 1;
+
+    // 먼저 지금 그려진 내용을 지운 뒤, 저장된 스냅샷을 다시 그린다 (되돌리기 시 이전 획이 남지 않도록)
+    canvas._ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+    if (!dataUrl) return;
+
     const img = new Image();
     img.onload = () => {
         canvas._ctx.drawImage(img, 0, 0, canvas.width / dpr, canvas.height / dpr);
@@ -697,16 +725,17 @@ function loadWrongHistory() {
     }
 }
 
-function saveWrongAnswersToHistory(results) {
-    const info = currentQuizData.examInfo;
-    const subjectDisplay = getSubjectDisplayName(info.examId, info.subject);
+// 문항 하나를 채점하는 즉시 오답노트에 반영 (정답이면 기존 오답 기록 있어도 제거)
+// q._origin이 있으면(= 오답 다시풀기 모드) 그 문항의 원래 출처 시험 정보로 저장한다
+function saveQuestionToHistory(q, uAns, isCorrect) {
+    const info = q._origin || currentQuizData.examInfo;
+    const subjectDisplay = q._origin ? q._origin.subject : getSubjectDisplayName(info.examId, info.subject);
+    const key = info.examId + '_' + q.questionNum;
 
     let history = loadWrongHistory();
+    history = history.filter(item => (item.examId + '_' + item.questionNum) !== key);
 
-    // 같은 시험(examId) 재응시 시, 이전 기록은 지우고 최신 결과로 교체
-    history = history.filter(item => item.examId !== info.examId);
-
-    results.filter(r => !r.isCorrect).forEach(({ q, uAns }) => {
+    if (!isCorrect) {
         history.push({
             examId: info.examId,
             year: info.year,
@@ -722,7 +751,7 @@ function saveWrongAnswersToHistory(results) {
             score: q.score,
             date: new Date().toISOString()
         });
-    });
+    }
 
     localStorage.setItem(WRONG_HISTORY_KEY, JSON.stringify(history));
 }
@@ -785,6 +814,139 @@ function clearWrongHistory() {
         populateWrongNoteSubjectFilter();
         renderWrongNoteHistory();
     }
+}
+
+// ★ 오답노트 JSON 파일로 내보내기 (기기 바꾸거나 캐시 삭제 대비 백업용)
+function exportWrongHistory() {
+    const history = loadWrongHistory();
+    if (history.length === 0) {
+        alert('내보낼 오답이 없습니다.');
+        return;
+    }
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `오답노트_백업_${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// ★ 오답노트 JSON 파일 불러오기 (기존 기록과 합침, examId+문항번호 기준 최신 것 유지)
+function triggerImportFile() {
+    document.getElementById('importFileInput').click();
+}
+
+function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        let imported;
+        try {
+            imported = JSON.parse(e.target.result);
+            if (!Array.isArray(imported)) throw new Error('배열 형식이 아닙니다');
+        } catch (err) {
+            alert('올바른 오답노트 백업 파일이 아닙니다.');
+            event.target.value = '';
+            return;
+        }
+
+        let history = loadWrongHistory();
+        imported.forEach(item => {
+            if (!item.examId || item.questionNum == null) return;
+            history = history.filter(h => !(h.examId === item.examId && h.questionNum === item.questionNum));
+            history.push(item);
+        });
+
+        localStorage.setItem(WRONG_HISTORY_KEY, JSON.stringify(history));
+        populateWrongNoteSubjectFilter();
+        renderWrongNoteHistory();
+        updateSideWrongCount();
+        alert(`${imported.length}개 항목을 불러왔습니다.`);
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+// ★ 지금 필터된 오답만 모아서 다시 풀기 모드로 진입
+//   (원본 문제 데이터는 이미 로드돼 있는 다른 시험 파일에서 examId+문항번호로 다시 찾아온다)
+function buildRetryQuestion(sourceExamData, q) {
+    let passageText = q.passage || null;
+    if (q.linkedPassageId && sourceExamData.sharedPassages && sourceExamData.sharedPassages[q.linkedPassageId]) {
+        passageText = sourceExamData.sharedPassages[q.linkedPassageId];
+    }
+    const info = sourceExamData.examInfo;
+    return {
+        ...q,
+        linkedPassageId: null,
+        passage: passageText,
+        _origin: {
+            examId: info.examId,
+            year: info.year,
+            semester: info.semester,
+            grade: info.grade,
+            examType: info.examType,
+            subject: getSubjectDisplayName(info.examId, info.subject)
+        }
+    };
+}
+
+function startWrongRetry() {
+    const history = loadWrongHistory();
+    const filterVal = document.getElementById('wrongNoteSubjectFilter').value;
+    const filtered = (filterVal === 'all') ? history : history.filter(h => h.subject === filterVal);
+
+    if (filtered.length === 0) {
+        alert('다시 풀 오답이 없습니다!');
+        return;
+    }
+
+    const resolvedQuestions = [];
+    filtered.forEach(item => {
+        const examEntry = examListInfo.exams.find(e => e.dataName === ('exam_' + item.examId));
+        if (!examEntry) return;
+        const sourceExamData = window[examEntry.dataName];
+        if (!sourceExamData) return;
+        const q = sourceExamData.questions.find(qq => qq.questionNum === item.questionNum);
+        if (!q) return;
+        resolvedQuestions.push(buildRetryQuestion(sourceExamData, q));
+    });
+
+    if (resolvedQuestions.length === 0) {
+        alert('원본 문제 데이터를 찾을 수 없습니다. (해당 시험 파일이 로드되어 있는지 확인해주세요)');
+        return;
+    }
+
+    currentQuizData = {
+        examInfo: {
+            examId: 'retry_' + Date.now(),
+            schoolName: '오답 복습',
+            year: '', semester: '', grade: '',
+            examType: '오답 다시 풀기',
+            subject: filterVal === 'all' ? '전체 과목' : filterVal
+        },
+        sharedPassages: {},
+        questions: resolvedQuestions
+    };
+
+    document.getElementById('wrongNoteContainer').style.display = 'none';
+    document.getElementById('quizContainer').style.display = 'flex';
+    document.getElementById('penToolBar').style.display = 'flex';
+
+    document.getElementById('headerTitle').innerText =
+        `📕 ${currentQuizData.examInfo.subject} 오답 다시 풀기 (${resolvedQuestions.length}문항)`;
+
+    currentIndex = 0;
+    userAnswers = [];
+    savedDrawings = {};
+    setMode('scroll');
+    initDrawingSystem();
+    renderQuestion();
 }
 
 function backToSelectionFromWrongNote() {

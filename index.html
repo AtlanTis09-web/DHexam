@@ -124,10 +124,11 @@
     <header>
         <button id="homeBtn" class="home-btn" onclick="location.reload()">🏠 메인</button>
         <h2 id="headerTitle">과목을 선택해주세요</h2>
-        <div id="penToolBar" style="display: none; margin-top: 10px; justify-content: center; gap: 8px;">
+        <div id="penToolBar" style="display: none; margin-top: 10px; justify-content: center; gap: 8px; flex-wrap: wrap;">
             <button id="modeScrollBtn" class="tool-btn active" onclick="setMode('scroll')">🖐️ 이동</button>
             <button id="modePenBtn" class="tool-btn" onclick="setMode('pen')">✏️ 빨간펜</button>
             <button id="modeHighlighterBtn" class="tool-btn" onclick="setMode('highlighter')">🖍️ 형광펜</button>
+            <button class="tool-btn" onclick="undoLastStroke()">↩️ 되돌리기</button>
             <button class="tool-btn" onclick="clearFullCanvas()" style="background-color: #e74c3c;">🧹 필기 지우기</button>
         </div>
     </header>
@@ -231,8 +232,12 @@
         </div>
         <div id="wrongNoteList" style="margin-top:20px;"></div>
         <div style="text-align: center; margin-top: 30px; display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
+            <button class="primary-btn" onclick="startWrongRetry()">🔁 오답만 다시 풀기</button>
+            <button class="secondary-btn" onclick="exportWrongHistory()">⬇️ 내보내기</button>
+            <button class="secondary-btn" onclick="triggerImportFile()">⬆️ 불러오기</button>
+            <input type="file" id="importFileInput" accept="application/json" style="display:none" onchange="handleImportFile(event)">
             <button class="secondary-btn" onclick="backToSelectionFromWrongNote()">← 메인으로</button>
-            <button class="secondary-btn" style="background-color:#e74c3c;" onclick="clearWrongHistory()">🗑️ 오답노트 전체 삭제</button>
+            <button class="secondary-btn" style="background-color:#e74c3c;" onclick="clearWrongHistory()">🗑️ 전체 삭제</button>
         </div>
     </div>
 
