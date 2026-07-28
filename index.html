@@ -111,13 +111,24 @@
     </header>
 
     <div id="selectionScreen" class="selection-container">
-        <h3 style="margin-bottom: 20px; color: #5c8d89;">풀이할 시험지를 선택하세요</h3>
-        <div class="select-group">
-            <select id="gradeSelect" onchange="updateSubjects()"><option value="">1. 학년을 선택하세요</option></select>
-            <select id="subjectSelect" onchange="updateExams()" disabled><option value="">2. 과목을 선택하세요</option></select>
-            <select id="examSelect" disabled><option value="">3. 시험을 선택하세요</option></select>
+        <h3>풀이할 시험지를 선택하세요</h3>
+
+        <div class="picker-step">
+            <p class="picker-label">1. 학년</p>
+            <div id="gradeChips" class="chip-group"></div>
         </div>
-        <button class="primary-btn" style="width: 100%; margin-top: 25px;" onclick="startExam()">시험 시작</button>
+
+        <div class="picker-step">
+            <p class="picker-label">2. 과목</p>
+            <div id="subjectChips" class="chip-group chip-group-disabled"></div>
+        </div>
+
+        <div class="picker-step">
+            <p class="picker-label">3. 시험</p>
+            <div id="examList" class="exam-list"><p class="exam-list-empty">학년과 과목을 먼저 선택하세요</p></div>
+        </div>
+
+        <button class="primary-btn" id="startExamBtn" style="width: 100%; margin-top: 25px;" onclick="startExam()" disabled>시험 시작</button>
         <button class="secondary-btn" style="width: 100%; margin-top: 12px;" onclick="showWrongNoteHistory()">📕 전체 오답노트 보기</button>
     </div>
 

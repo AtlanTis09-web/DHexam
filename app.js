@@ -6,6 +6,11 @@ let isAnswerChecked = false;
 let lastExamResults = [];      // 이번 시험의 문항별 채점 결과 (필터링용)
 let currentReviewFilter = 'all'; // 'all' | 'wrong'
 
+// 시험 선택 상태 (학년 → 과목 → 시험 칩 선택)
+let selectedGrade = null;
+let selectedSubject = null;
+let selectedExamDataName = null;
+
 // ★ 수식($...$) 렌더링 헬퍼 - 데이터 안의 LaTeX 문법을 실제 수식으로 그려줌
 function renderMath(el) {
     if (typeof renderMathInElement === 'function' && el) {
@@ -19,78 +24,112 @@ function renderMath(el) {
     }
 }
 
-// 1. 초기화: 사이트 접속 시 examListInfo 변수에서 "학년" 드롭다운부터 채운다
+// =====================================================
+// 1. 시험 선택 화면: 학년 → 과목 → 시험 칩 선택
+// =====================================================
 window.onload = function() {
     if (typeof examListInfo === 'undefined') {
         document.getElementById('headerTitle').innerText = "데이터 연결 오류";
         return;
     }
-    populateGradeSelect();
+    renderGradeChips();
 };
 
-function populateGradeSelect() {
-    const gradeSelect = document.getElementById('gradeSelect');
+function renderGradeChips() {
     const grades = [...new Set(examListInfo.exams.map(e => e.grade))].sort((a, b) => a - b);
-
-    gradeSelect.innerHTML = '<option value="">1. 학년을 선택하세요</option>' +
-        grades.map(g => `<option value="${g}">${g}학년</option>`).join('');
+    const wrap = document.getElementById('gradeChips');
+    wrap.innerHTML = grades.map(g =>
+        `<button type="button" class="chip" data-grade="${g}" onclick="selectGrade(${g})">${g}학년</button>`
+    ).join('');
 }
 
-// 1-1. 학년 선택 시 → 그 학년에 있는 과목만 추려서 "과목" 드롭다운 채우기
-function updateSubjects() {
-    const grade = document.getElementById('gradeSelect').value;
-    const subjectSelect = document.getElementById('subjectSelect');
-    const examSelect = document.getElementById('examSelect');
+function selectGrade(grade) {
+    selectedGrade = grade;
+    selectedSubject = null;
+    selectedExamDataName = null;
 
-    // 하위 단계 초기화
-    examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>';
-    examSelect.disabled = true;
+    document.querySelectorAll('#gradeChips .chip').forEach(btn => {
+        btn.classList.toggle('chip-active', Number(btn.dataset.grade) === grade);
+    });
 
-    if (!grade) {
-        subjectSelect.innerHTML = '<option value="">2. 과목을 선택하세요</option>';
-        subjectSelect.disabled = true;
+    renderSubjectChips();
+    renderExamList();
+    updateStartButton();
+}
+
+function renderSubjectChips() {
+    const wrap = document.getElementById('subjectChips');
+
+    if (!selectedGrade) {
+        wrap.innerHTML = '';
+        wrap.classList.add('chip-group-disabled');
         return;
     }
 
+    wrap.classList.remove('chip-group-disabled');
     const subjects = [...new Set(
         examListInfo.exams
-            .filter(e => String(e.grade) === String(grade))
+            .filter(e => String(e.grade) === String(selectedGrade))
             .map(e => e.subject)
     )];
 
-    subjectSelect.innerHTML = '<option value="">2. 과목을 선택하세요</option>' +
-        subjects.map(s => `<option value="${s}">${s}</option>`).join('');
-    subjectSelect.disabled = false;
+    wrap.innerHTML = subjects.map(s =>
+        `<button type="button" class="chip" data-subject="${s}" onclick="selectSubject('${s}')">${s}</button>`
+    ).join('');
 }
 
-// 1-2. 과목 선택 시 → 그 학년+과목에 해당하는 시험(중간/기말, 연도 등)만 "시험" 드롭다운 채우기
-function updateExams() {
-    const grade = document.getElementById('gradeSelect').value;
-    const subject = document.getElementById('subjectSelect').value;
-    const examSelect = document.getElementById('examSelect');
+function selectSubject(subject) {
+    selectedSubject = subject;
+    selectedExamDataName = null;
 
-    if (!subject) {
-        examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>';
-        examSelect.disabled = true;
+    document.querySelectorAll('#subjectChips .chip').forEach(btn => {
+        btn.classList.toggle('chip-active', btn.dataset.subject === subject);
+    });
+
+    renderExamList();
+    updateStartButton();
+}
+
+function renderExamList() {
+    const wrap = document.getElementById('examList');
+
+    if (!selectedGrade || !selectedSubject) {
+        wrap.innerHTML = '<p class="exam-list-empty">학년과 과목을 먼저 선택하세요</p>';
         return;
     }
 
     const exams = examListInfo.exams.filter(e =>
-        String(e.grade) === String(grade) && e.subject === subject
+        String(e.grade) === String(selectedGrade) && e.subject === selectedSubject
     );
 
-    examSelect.innerHTML = '<option value="">3. 시험을 선택하세요</option>' +
-        exams.map(e => `<option value="${e.dataName}">${e.year}년 ${e.semester}학기 ${e.examType}</option>`).join('');
-    examSelect.disabled = false;
+    if (exams.length === 0) {
+        wrap.innerHTML = '<p class="exam-list-empty">등록된 시험이 없습니다</p>';
+        return;
+    }
+
+    wrap.innerHTML = exams.map(e =>
+        `<button type="button" class="exam-item" data-dataname="${e.dataName}" onclick="selectExam('${e.dataName}')">${e.year}년 ${e.semester}학기 ${e.examType}</button>`
+    ).join('');
+}
+
+function selectExam(dataName) {
+    selectedExamDataName = dataName;
+    document.querySelectorAll('#examList .exam-item').forEach(btn => {
+        btn.classList.toggle('exam-item-active', btn.dataset.dataname === dataName);
+    });
+    updateStartButton();
+}
+
+function updateStartButton() {
+    document.getElementById('startExamBtn').disabled = !selectedExamDataName;
 }
 
 // 2. 시험 시작 버튼 클릭 시
 function startExam() {
-    const select = document.getElementById('examSelect');
-    const dataName = select.value;
+    const dataName = selectedExamDataName;
 
     if (!dataName) {
-        alert("목록에서 시험을 선택해주세요!");
+        alert("학년, 과목, 시험을 모두 선택해주세요!");
         return;
     }
 
@@ -105,12 +144,16 @@ function startExam() {
     // 화면 전환
     document.getElementById('selectionScreen').style.display = 'none';
     document.getElementById('quizContainer').style.display = 'flex';
+    document.getElementById('penToolBar').style.display = 'flex';
 
     const info = currentQuizData.examInfo;
     document.getElementById('headerTitle').innerText = `${info.year}학년도 ${info.semester}학기 ${info.schoolName} ${info.subject}`;
 
     currentIndex = 0;
     userAnswers = [];
+    savedDrawings = {};
+    setMode('scroll');
+    initDrawingSystem();
     renderQuestion();
 }
 
@@ -137,9 +180,20 @@ function renderQuestion() {
         inlineContainer.style.display = 'none';
     }
 
-    // ★ questionText 안에 이미 "번호. ... [배점]"이 포함되어 있으므로 여기서 또 붙이지 않는다
+    // questionText 안에 이미 "번호. ... [배점]"이 포함되어 있으므로 여기서 또 붙이지 않는다
     document.getElementById('questionTitle').innerHTML = q.questionText;
     renderMath(document.getElementById('questionTitle'));
+
+    // ★ 표/그림이 있는 문항이면 이미지 표시
+    const imageContainer = document.getElementById('imageContainer');
+    const questionImage = document.getElementById('questionImage');
+    if (q.imageUrl) {
+        questionImage.src = q.imageUrl;
+        imageContainer.style.display = 'block';
+    } else {
+        questionImage.removeAttribute('src');
+        imageContainer.style.display = 'none';
+    }
 
     const optionsContainer = document.getElementById('optionsContainer');
     optionsContainer.innerHTML = '';
@@ -154,6 +208,9 @@ function renderQuestion() {
     const expBox = document.getElementById('explanationBox');
     if (expBox) expBox.remove();
 
+    const prevBtn = document.getElementById('prevBtn');
+    prevBtn.style.display = currentIndex > 0 ? 'block' : 'none';
+
     const nextBtn = document.querySelector('.question-area .primary-btn');
     if (currentIndex === currentQuizData.questions.length - 1) {
         nextBtn.innerText = '마지막 문제 ❯';
@@ -161,12 +218,19 @@ function renderQuestion() {
         nextBtn.innerText = '다음 문제 ❯';
     }
     nextBtn.style.backgroundColor = '#3498db';
+
+    // ★ 문제가 바뀌었으니 필기 캔버스도 새 크기로 맞추고, 이 문제에 저장된 필기가 있으면 복원
+    resizeAllCanvases();
+    restoreDrawings(currentIndex);
 }
 
-// 4. 모바일 지문 접기 토글
+// 4. 모바일 지문 접기 토글 (펼치면 지문 높이가 바뀌므로 캔버스도 다시 맞춤)
 function togglePassage() {
     const content = document.getElementById('passageContent');
     const btn = document.getElementById('togglePassageBtn');
+
+    const beforeDataUrl = snapshotCanvas('passageCanvas');
+
     if (content.classList.contains('collapsed')) {
         content.classList.remove('collapsed');
         btn.innerText = '지문 접기 ▲';
@@ -174,6 +238,12 @@ function togglePassage() {
         content.classList.add('collapsed');
         btn.innerText = '지문 펴기 ▼';
     }
+
+    // 높이가 바뀌었으니 캔버스를 새로 맞추고, 방금 그렸던 필기를 그대로 되살림
+    requestAnimationFrame(() => {
+        resizeCanvasById('passageCanvas');
+        restoreCanvasFromDataUrl('passageCanvas', beforeDataUrl);
+    });
 }
 
 // 5. 선지 클릭 시 즉시 정답 확인
@@ -211,12 +281,14 @@ function checkAnswer(selectedVal) {
     }
 }
 
-// 6. 다음 문제로 이동
+// 6. 다음/이전 문제로 이동 (이동 전, 지금 그려둔 필기를 저장)
 function goNext() {
     if (!isAnswerChecked) {
         alert("정답을 먼저 선택해주세요!");
         return;
     }
+
+    saveCurrentDrawings();
 
     if (currentIndex === currentQuizData.questions.length - 1) {
         showResults();
@@ -227,9 +299,18 @@ function goNext() {
     }
 }
 
+function goPrev() {
+    if (currentIndex === 0) return;
+    saveCurrentDrawings();
+    currentIndex--;
+    renderQuestion();
+    document.querySelector('.question-area').scrollTop = 0;
+}
+
 // 7. 최종 채점 결과 및 오답 노트 (시험 직후 화면)
 function showResults() {
     document.getElementById('quizContainer').style.display = 'none';
+    document.getElementById('penToolBar').style.display = 'none';
     const resultContainer = document.getElementById('resultContainer');
     resultContainer.style.display = 'block';
 
@@ -310,6 +391,170 @@ function updateFilterButtons() {
 }
 
 // =====================================================
+// 필기 시스템 (빨간펜 / 형광펜) - 문항마다 캔버스에 직접 필기
+// =====================================================
+
+let currentMode = 'scroll';       // 'scroll' | 'pen' | 'highlighter'
+let isPointerDown = false;
+let lastX = 0, lastY = 0;
+let drawingHandlersAttached = false;
+
+// 문항별 필기 임시 저장소 (이 세션 동안만 유지, 새로고침하면 초기화됨)
+let savedDrawings = {}; // { [questionIndex]: { passage: dataURL|null, question: dataURL|null } }
+
+function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('quizContainer').classList.toggle('pen-mode-active', mode !== 'scroll');
+
+    document.getElementById('modeScrollBtn').classList.toggle('active', mode === 'scroll');
+    document.getElementById('modePenBtn').classList.toggle('active', mode === 'pen');
+    document.getElementById('modeHighlighterBtn').classList.toggle('active', mode === 'highlighter');
+}
+
+function setupCanvasContext(canvas) {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    if (rect.width === 0 || rect.height === 0) return null;
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    canvas._ctx = ctx;
+    return ctx;
+}
+
+function resizeCanvasById(id) {
+    const canvas = document.getElementById(id);
+    if (canvas) setupCanvasContext(canvas);
+}
+
+function resizeAllCanvases() {
+    resizeCanvasById('passageCanvas');
+    resizeCanvasById('questionCanvas');
+}
+
+function getEventPos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function attachDrawingHandlers(canvas) {
+    const start = (e) => {
+        if (currentMode === 'scroll' || !canvas._ctx) return;
+        isPointerDown = true;
+        const pos = getEventPos(canvas, e);
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault();
+    };
+
+    const move = (e) => {
+        if (!isPointerDown || currentMode === 'scroll' || !canvas._ctx) return;
+        const ctx = canvas._ctx;
+        const pos = getEventPos(canvas, e);
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+
+        if (currentMode === 'pen') {
+            ctx.strokeStyle = '#B23A2E';
+            ctx.lineWidth = 2.5;
+            ctx.globalAlpha = 1;
+        } else if (currentMode === 'highlighter') {
+            ctx.strokeStyle = '#FFD34D';
+            ctx.lineWidth = 16;
+            ctx.globalAlpha = 0.55;
+        }
+        ctx.stroke();
+
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault();
+    };
+
+    const end = () => { isPointerDown = false; };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+}
+
+function initDrawingSystem() {
+    resizeAllCanvases();
+
+    if (drawingHandlersAttached) return; // 이벤트 리스너 중복 등록 방지
+    const pCanvas = document.getElementById('passageCanvas');
+    const qCanvas = document.getElementById('questionCanvas');
+    if (pCanvas) attachDrawingHandlers(pCanvas);
+    if (qCanvas) attachDrawingHandlers(qCanvas);
+
+    window.addEventListener('resize', () => {
+        resizeAllCanvases();
+        restoreDrawings(currentIndex);
+    });
+
+    drawingHandlersAttached = true;
+}
+
+// "필기 지우기" 버튼: 지금 보고 있는 문제의 필기만 지움
+function clearFullCanvas() {
+    ['passageCanvas', 'questionCanvas'].forEach(id => {
+        const canvas = document.getElementById(id);
+        if (canvas && canvas._ctx) {
+            canvas._ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    });
+    delete savedDrawings[currentIndex];
+}
+
+function snapshotCanvas(id) {
+    const canvas = document.getElementById(id);
+    return canvas ? canvas.toDataURL() : null;
+}
+
+function restoreCanvasFromDataUrl(id, dataUrl) {
+    if (!dataUrl) return;
+    const canvas = document.getElementById(id);
+    if (!canvas || !canvas._ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const img = new Image();
+    img.onload = () => {
+        canvas._ctx.drawImage(img, 0, 0, canvas.width / dpr, canvas.height / dpr);
+    };
+    img.src = dataUrl;
+}
+
+// 문제를 벗어나기 전, 지금까지 그린 필기를 문항 번호에 저장
+function saveCurrentDrawings() {
+    savedDrawings[currentIndex] = {
+        passage: snapshotCanvas('passageCanvas'),
+        question: snapshotCanvas('questionCanvas')
+    };
+}
+
+// 문제로 돌아왔을 때, 저장해둔 필기를 다시 그려줌
+function restoreDrawings(index) {
+    const data = savedDrawings[index];
+    if (!data) return;
+    restoreCanvasFromDataUrl('passageCanvas', data.passage);
+    restoreCanvasFromDataUrl('questionCanvas', data.question);
+}
+
+// =====================================================
 // 누적 오답노트 (여러 시험에 걸쳐 localStorage에 저장)
 // =====================================================
 
@@ -363,6 +608,7 @@ function saveWrongAnswersToHistory(results) {
 // 메인 화면 "전체 오답노트 보기" 버튼
 function showWrongNoteHistory() {
     document.getElementById('selectionScreen').style.display = 'none';
+    document.getElementById('penToolBar').style.display = 'none';
     document.getElementById('wrongNoteContainer').style.display = 'flex';
     populateWrongNoteSubjectFilter();
     renderWrongNoteHistory();

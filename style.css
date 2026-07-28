@@ -84,6 +84,34 @@ header h2 {
 .select-group select:disabled { color: #B4AFA0; cursor: not-allowed; border-bottom-color: #E6E2D6; }
 .select-group select:focus:not(:disabled) { border-bottom-color: var(--red-pen); }
 
+/* --- ★ 학년/과목 칩 선택 + 시험 카드 목록 --- */
+.picker-step { text-align: left; margin-top: 22px; }
+.picker-label {
+    font-size: 12.5px; font-weight: 700; color: var(--ink-soft);
+    letter-spacing: 0.04em; margin-bottom: 9px; text-transform: uppercase;
+}
+.chip-group { display: flex; flex-wrap: wrap; gap: 8px; transition: opacity 0.2s; }
+.chip-group-disabled { opacity: 0.4; pointer-events: none; }
+.chip {
+    padding: 9px 16px; border-radius: 20px; border: 1.5px solid var(--paper-line);
+    background: var(--paper-card); color: var(--ink); font-size: 14.5px; font-weight: 500;
+    cursor: pointer; transition: 0.15s;
+}
+.chip:hover { border-color: var(--navy); }
+.chip.chip-active { background: var(--navy); border-color: var(--navy); color: #F3F1E9; font-weight: 700; }
+
+.exam-list { display: flex; flex-direction: column; gap: 8px; }
+.exam-list-empty { color: var(--ink-soft); font-size: 14px; padding: 8px 2px; }
+.exam-item {
+    text-align: left; padding: 13px 16px; border-radius: 8px; border: 1.5px solid var(--paper-line);
+    background: var(--paper-card); color: var(--ink); font-size: 15px; font-weight: 500; cursor: pointer; transition: 0.15s;
+}
+.exam-item:hover { border-color: var(--navy); background: var(--navy-tint); }
+.exam-item.exam-item-active { border-color: var(--navy); background: var(--navy-tint); font-weight: 700; color: var(--navy-deep); }
+
+#startExamBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+#startExamBtn:disabled:hover { background-color: var(--navy); }
+
 .passage-area { flex: 1.2; display: flex; flex-direction: column; }
 .passage-content {
     font-family: 'Noto Serif KR', serif; font-size: 16px; line-height: 1.85;
