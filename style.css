@@ -138,6 +138,18 @@ header h2 {
 
 #optionsContainer { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
 
+/* --- ★ 연습장: 필기 전용 여백 (빨간펜/형광펜 캔버스가 이 영역까지 자동으로 덮음) --- */
+.scratch-pad {
+    margin-top: 22px; min-height: 280px; border-radius: 6px;
+    border: 1.5px dashed var(--paper-line);
+    background-image: linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 30px;
+    background-color: #F8F7F1;
+}
+.scratch-pad-label {
+    font-size: 12.5px; color: var(--ink-soft); padding: 10px 14px; font-weight: 500;
+}
+
 .option-label {
     display: block; padding: 15px 18px; background-color: var(--paper-card); border: 1.5px solid var(--paper-line);
     border-radius: 6px; cursor: pointer; transition: all 0.15s; font-size: 15.5px; color: var(--ink);
