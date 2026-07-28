@@ -24,13 +24,63 @@ function renderMath(el) {
     }
 }
 
-// ★ 텍스트 안에 "<보기>"가 있으면, 그 뒤 내용(ㄱ,ㄴ,ㄷ... 목록)을 박스로 감싼다
+// ★ 텍스트 안에 "<보기>" + 줄바꿈이 있을 때만(진짜 보기 목록일 때만) 박스로 감싼다
+//   (문장 중간의 "~<보기>에서 고른 것은" 같은 단순 참조는 건드리지 않음)
 function boxifyBogi(text) {
-    if (!text || text.indexOf('<보기>') === -1) return text;
-    const idx = text.indexOf('<보기>');
+    if (!text) return text;
+    const idx = text.indexOf('<보기>\n');
+    if (idx === -1) return text;
     const before = text.slice(0, idx);
     const after = text.slice(idx);
     return `${before}<div class="bogi-box">${after}</div>`;
+}
+
+// ★ 마크다운 표( | 해역 | 수온 | ... |, |---|---|... ) 를 실제 HTML 표로 변환
+function renderMarkdownTables(text) {
+    if (!text || text.indexOf('|') === -1) return text;
+
+    const lines = text.split('\n');
+    const rowPattern = /^\s*\|.+\|\s*$/;
+    const sepPattern = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/;
+
+    const out = [];
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        const next = lines[i + 1] || '';
+
+        if (rowPattern.test(line) && sepPattern.test(next)) {
+            const toCells = (row) => row.split('|').slice(1, -1).map(c => c.trim());
+            const headerCells = toCells(line);
+
+            let j = i + 2;
+            const bodyRows = [];
+            while (j < lines.length && rowPattern.test(lines[j])) {
+                bodyRows.push(toCells(lines[j]));
+                j++;
+            }
+
+            let table = '<table class="data-table"><thead><tr>';
+            headerCells.forEach(c => table += `<th>${c}</th>`);
+            table += '</tr></thead><tbody>';
+            bodyRows.forEach(row => {
+                table += '<tr>' + row.map(c => `<td>${c}</td>`).join('') + '</tr>';
+            });
+            table += '</tbody></table>';
+
+            out.push(table);
+            i = j;
+        } else {
+            out.push(line);
+            i++;
+        }
+    }
+    return out.join('\n');
+}
+
+// ★ 위 두 처리를 한 번에 적용하는 공통 헬퍼 (표 변환 → 보기 박스 순서로 처리)
+function formatContent(text) {
+    return boxifyBogi(renderMarkdownTables(text));
 }
 
 // =====================================================
@@ -218,7 +268,7 @@ function renderQuestion() {
 
     const passageArea = document.getElementById('passageArea');
     if (q.linkedPassageId && currentQuizData.sharedPassages[q.linkedPassageId]) {
-        document.getElementById('passageContent').innerHTML = boxifyBogi(currentQuizData.sharedPassages[q.linkedPassageId]);
+        document.getElementById('passageContent').innerHTML = formatContent(currentQuizData.sharedPassages[q.linkedPassageId]);
         passageArea.style.display = 'flex';
         renderMath(document.getElementById('passageContent'));
     } else {
@@ -227,7 +277,7 @@ function renderQuestion() {
 
     const inlineContainer = document.getElementById('inlinePassageContainer');
     if (q.passage) {
-        inlineContainer.innerHTML = `<div class="inline-passage">${boxifyBogi(q.passage)}</div>`;
+        inlineContainer.innerHTML = `<div class="inline-passage">${formatContent(q.passage)}</div>`;
         inlineContainer.style.display = 'block';
         renderMath(inlineContainer);
     } else {
@@ -235,7 +285,7 @@ function renderQuestion() {
     }
 
     // questionText 안에 이미 "번호. ... [배점]"이 포함되어 있으므로 여기서 또 붙이지 않는다
-    document.getElementById('questionTitle').innerHTML = boxifyBogi(q.questionText);
+    document.getElementById('questionTitle').innerHTML = formatContent(q.questionText);
     renderMath(document.getElementById('questionTitle'));
 
     // ★ 표/그림이 있는 문항이면 이미지 표시
@@ -429,7 +479,7 @@ function renderReviewNotes() {
     listToShow.forEach(({ q, uAns, isCorrect }) => {
         let cardHtml = `<div class="${isCorrect ? 'correct-card' : 'wrong-card'}">`;
         cardHtml += `<h3>${q.questionNum}번 ${isCorrect ? '✅ 정답' : '❌ 오답'} (${q.score}점)</h3>`;
-        cardHtml += `<p style="margin-top:10px; font-weight:bold;">${boxifyBogi(q.questionText)}</p>`;
+        cardHtml += `<p style="margin-top:10px; font-weight:bold;">${formatContent(q.questionText)}</p>`;
 
         cardHtml += `<div class="ans-review">`;
         if (!isCorrect) {
@@ -718,7 +768,7 @@ function renderWrongNoteHistory() {
     listEl.innerHTML = filtered.map(item => `
         <div class="wrong-card">
             <h3>${item.year}년 ${item.semester}학기 ${item.subject} ${item.examType} · ${item.questionNum}번 (${item.score}점)</h3>
-            <p style="margin-top:10px; font-weight:bold;">${boxifyBogi(item.questionText)}</p>
+            <p style="margin-top:10px; font-weight:bold;">${formatContent(item.questionText)}</p>
             <div class="ans-review">
                 <p class="my-ans">내 선택: ${item.myAnswerText}</p>
                 <p class="real-ans">정답: ${item.correctAnswerText}</p>

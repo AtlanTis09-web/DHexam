@@ -300,6 +300,16 @@ input[type="text"] { font-size: 16px; }
     background: var(--paper-card); white-space: pre-wrap; line-height: 1.75;
 }
 
+/* --- ★ 데이터 표 (마크다운 표를 변환한 실제 HTML 표) --- */
+.data-table {
+    border-collapse: collapse; margin: 14px auto; font-family: 'IBM Plex Sans KR', sans-serif;
+    background: var(--paper-card); white-space: normal;
+}
+.data-table th, .data-table td {
+    border: 1.3px solid var(--ink); padding: 8px 18px; text-align: center; font-size: 14.5px;
+}
+.data-table th { background: var(--navy-tint); font-weight: 700; color: var(--navy-deep); }
+
 /* 키보드 포커스 표시 (접근성) */
 button:focus-visible, select:focus-visible, input:focus-visible {
     outline: 2px solid var(--red-pen); outline-offset: 2px;
