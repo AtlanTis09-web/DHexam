@@ -140,7 +140,7 @@ header h2 {
 
 /* --- ★ 연습장: 필기 전용 여백 (빨간펜/형광펜 캔버스가 이 영역까지 자동으로 덮음) --- */
 .scratch-pad {
-    margin-top: 22px; min-height: 280px; border-radius: 6px;
+    margin-top: 22px; min-height: 200px; border-radius: 6px;
     border: 1.5px dashed var(--paper-line);
     background-image: linear-gradient(var(--paper-line) 1px, transparent 1px);
     background-size: 100% 30px;

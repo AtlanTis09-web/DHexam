@@ -219,9 +219,26 @@ function renderQuestion() {
     }
     nextBtn.style.backgroundColor = '#3498db';
 
-    // ★ 문제가 바뀌었으니 필기 캔버스도 새 크기로 맞추고, 이 문제에 저장된 필기가 있으면 복원
+    // ★ 문제가 바뀌었으니 연습장 높이를 화면에 맞게 다시 계산하고, 캔버스도 새 크기로 맞춘 뒤 저장된 필기를 복원
+    adjustScratchPadHeight();
     resizeAllCanvases();
     restoreDrawings(currentIndex);
+}
+
+// ★ 연습장 높이를 화면(기기)의 남는 공간에 맞춰 자동으로 채움
+function adjustScratchPadHeight() {
+    const pad = document.getElementById('scratchPad');
+    const btnGroup = document.querySelector('.question-area .btn-group');
+    if (!pad || !btnGroup) return;
+
+    const padTop = pad.getBoundingClientRect().top;
+    const btnGroupHeight = btnGroup.offsetHeight;
+    const bottomBuffer = 30; // .question-area 하단 여백
+
+    const available = window.innerHeight - padTop - btnGroupHeight - bottomBuffer;
+    const minHeight = 140;
+
+    pad.style.minHeight = Math.max(available, minHeight) + 'px';
 }
 
 // 4. 모바일 지문 접기 토글 (펼치면 지문 높이가 바뀌므로 캔버스도 다시 맞춤)
@@ -503,6 +520,7 @@ function initDrawingSystem() {
     if (qCanvas) attachDrawingHandlers(qCanvas);
 
     window.addEventListener('resize', () => {
+        adjustScratchPadHeight();
         resizeAllCanvases();
         restoreDrawings(currentIndex);
     });
