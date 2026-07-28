@@ -116,5 +116,6 @@ var examListInfo = {
     { "year": 2026, "semester": 1, "grade": 2, "subject": "물리학", "examType": "기말고사", "file": "2026_1_fin_physics.js", "dataName": "exam_2026_1_fin_physics" },
     { "year": 2026, "semester": 1, "grade": 2, "subject": "사회와문화", "examType": "기말고사", "file": "2026_1_fin_society_culture.js", "dataName": "exam_2026_1_fin_society_culture" },
     { "year": 2026, "semester": 1, "grade": 2, "subject": "생명과학", "examType": "기말고사", "file": "2026_1_fin_biology.js", "dataName": "exam_2026_1_fin_biology" },
+    { "year": 2026, "semester": 1, "grade": 2, "subject": "세계사", "examType": "기말고사", "file": "2026_1_fin_worldhistory.js", "dataName": "exam_2026_1_fin_worldhistory" },
   ]
 };

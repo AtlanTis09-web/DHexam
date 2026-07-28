@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>기출문제 마스터 Pro</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <link rel="stylesheet" href="style.css">
     
     <script src="exam_list.js"></script>
@@ -93,23 +96,11 @@
     <script src="2026_1_mid_english1.js"></script>
     <script src="2026_1_mid_ethics.js"></script>
     <script src="2026_1_mid_japanese.js"></script>
-    <script src="2026_1_mid_chinese_culture.js"></script>
-    <script src="2026_1_mid_earthscience.js"></script>
-    <script src="2026_1_mid_geography.js"></script>
-    <script src="2026_1_mid_hanmun.js"></script>
-    <script src="2026_1_mid_chemistry.js"></script>
-
-
-    <script src="2026_1_fin_algebra.js"></script>
-    <script src="2026_1_fin_literature.js"></script>
-    <script src="2026_1_fin_physics.js"></script>
-    <script src="2026_1_fin_society_culture.js"></script>
-    <script src="2026_1_fin_biology.js"></script>
-
 </head>
 <body>
 
     <header>
+        <button id="homeBtn" class="home-btn" onclick="location.reload()">🏠 메인</button>
         <h2 id="headerTitle">과목을 선택해주세요</h2>
         <div id="penToolBar" style="display: none; margin-top: 10px; justify-content: center; gap: 8px;">
             <button id="modeScrollBtn" class="tool-btn active" onclick="setMode('scroll')">🖐️ 이동</button>
@@ -155,8 +146,7 @@
                 <input type="text" id="subjectiveInput" placeholder="답을 입력하고 엔터를 누르세요">
             </div>
 
-            <div class="btn-group" style="position:relative; z-index:11; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 10px;">
-                <button class="secondary-btn" onclick="location.reload()" style="flex: 1; padding: 14px 10px;">🏠 메인</button>
+            <div class="btn-group" style="position:relative; z-index:11; display: flex; justify-content: flex-end; align-items: center; margin-top: 20px; gap: 10px;">
                 <button class="secondary-btn" id="prevBtn" onclick="goPrev()" style="flex: 1.5; padding: 14px 10px; display: none; background-color: #7f8c8d;">❮ 이전 문제</button>
                 <button class="primary-btn" id="nextBtn" onclick="goNext()" style="flex: 2; padding: 14px 10px;">다음 문제 ❯</button>
             </div>

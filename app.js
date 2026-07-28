@@ -6,6 +6,19 @@ let isAnswerChecked = false;
 let lastExamResults = [];      // 이번 시험의 문항별 채점 결과 (필터링용)
 let currentReviewFilter = 'all'; // 'all' | 'wrong'
 
+// ★ 수식($...$) 렌더링 헬퍼 - 데이터 안의 LaTeX 문법을 실제 수식으로 그려줌
+function renderMath(el) {
+    if (typeof renderMathInElement === 'function' && el) {
+        renderMathInElement(el, {
+            delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+        });
+    }
+}
+
 // 1. 초기화: 사이트 접속 시 examListInfo 변수에서 "학년" 드롭다운부터 채운다
 window.onload = function() {
     if (typeof examListInfo === 'undefined') {
@@ -110,6 +123,7 @@ function renderQuestion() {
     if (q.linkedPassageId && currentQuizData.sharedPassages[q.linkedPassageId]) {
         document.getElementById('passageContent').innerHTML = currentQuizData.sharedPassages[q.linkedPassageId];
         passageArea.style.display = 'flex';
+        renderMath(document.getElementById('passageContent'));
     } else {
         passageArea.style.display = 'none';
     }
@@ -118,11 +132,14 @@ function renderQuestion() {
     if (q.passage) {
         inlineContainer.innerHTML = `<div class="inline-passage">${q.passage}</div>`;
         inlineContainer.style.display = 'block';
+        renderMath(inlineContainer);
     } else {
         inlineContainer.style.display = 'none';
     }
 
-    document.getElementById('questionTitle').innerHTML = `${q.questionNum}. ${q.questionText} <span style="font-size:14px; color:#666;">[${q.score}점]</span>`;
+    // ★ questionText 안에 이미 "번호. ... [배점]"이 포함되어 있으므로 여기서 또 붙이지 않는다
+    document.getElementById('questionTitle').innerHTML = q.questionText;
+    renderMath(document.getElementById('questionTitle'));
 
     const optionsContainer = document.getElementById('optionsContainer');
     optionsContainer.innerHTML = '';
@@ -132,6 +149,7 @@ function renderQuestion() {
         label.innerHTML = `<input type="radio" name="opt" value="${idx}" onclick="checkAnswer(${idx})"> ${opt}`;
         optionsContainer.appendChild(label);
     });
+    renderMath(optionsContainer);
 
     const expBox = document.getElementById('explanationBox');
     if (expBox) expBox.remove();
@@ -184,6 +202,7 @@ function checkAnswer(selectedVal) {
     }
 
     document.querySelector('.question-area').insertBefore(expBox, document.querySelector('.btn-group'));
+    renderMath(expBox);
 
     const nextBtn = document.querySelector('.question-area .primary-btn');
     if (currentIndex === currentQuizData.questions.length - 1) {
@@ -272,6 +291,7 @@ function renderReviewNotes() {
 
         reviewNotes.innerHTML += cardHtml;
     });
+    renderMath(reviewNotes);
 }
 
 // 7-2. 필터 버튼 클릭
@@ -388,6 +408,7 @@ function renderWrongNoteHistory() {
             <div class="explanation"><strong>💡 해설:</strong><br>${item.explanation}</div>
         </div>
     `).join('');
+    renderMath(listEl);
 }
 
 function clearWrongHistory() {
