@@ -24,6 +24,15 @@ function renderMath(el) {
     }
 }
 
+// ★ 텍스트 안에 "<보기>"가 있으면, 그 뒤 내용(ㄱ,ㄴ,ㄷ... 목록)을 박스로 감싼다
+function boxifyBogi(text) {
+    if (!text || text.indexOf('<보기>') === -1) return text;
+    const idx = text.indexOf('<보기>');
+    const before = text.slice(0, idx);
+    const after = text.slice(idx);
+    return `${before}<div class="bogi-box">${after}</div>`;
+}
+
 // =====================================================
 // 1. 시험 선택 화면: 학년 → 과목 → 시험 칩 선택
 // =====================================================
@@ -209,7 +218,7 @@ function renderQuestion() {
 
     const passageArea = document.getElementById('passageArea');
     if (q.linkedPassageId && currentQuizData.sharedPassages[q.linkedPassageId]) {
-        document.getElementById('passageContent').innerHTML = currentQuizData.sharedPassages[q.linkedPassageId];
+        document.getElementById('passageContent').innerHTML = boxifyBogi(currentQuizData.sharedPassages[q.linkedPassageId]);
         passageArea.style.display = 'flex';
         renderMath(document.getElementById('passageContent'));
     } else {
@@ -218,7 +227,7 @@ function renderQuestion() {
 
     const inlineContainer = document.getElementById('inlinePassageContainer');
     if (q.passage) {
-        inlineContainer.innerHTML = `<div class="inline-passage">${q.passage}</div>`;
+        inlineContainer.innerHTML = `<div class="inline-passage">${boxifyBogi(q.passage)}</div>`;
         inlineContainer.style.display = 'block';
         renderMath(inlineContainer);
     } else {
@@ -226,7 +235,7 @@ function renderQuestion() {
     }
 
     // questionText 안에 이미 "번호. ... [배점]"이 포함되어 있으므로 여기서 또 붙이지 않는다
-    document.getElementById('questionTitle').innerHTML = q.questionText;
+    document.getElementById('questionTitle').innerHTML = boxifyBogi(q.questionText);
     renderMath(document.getElementById('questionTitle'));
 
     // ★ 표/그림이 있는 문항이면 이미지 표시
@@ -420,7 +429,7 @@ function renderReviewNotes() {
     listToShow.forEach(({ q, uAns, isCorrect }) => {
         let cardHtml = `<div class="${isCorrect ? 'correct-card' : 'wrong-card'}">`;
         cardHtml += `<h3>${q.questionNum}번 ${isCorrect ? '✅ 정답' : '❌ 오답'} (${q.score}점)</h3>`;
-        cardHtml += `<p style="margin-top:10px; font-weight:bold;">${q.questionText}</p>`;
+        cardHtml += `<p style="margin-top:10px; font-weight:bold;">${boxifyBogi(q.questionText)}</p>`;
 
         cardHtml += `<div class="ans-review">`;
         if (!isCorrect) {
@@ -709,7 +718,7 @@ function renderWrongNoteHistory() {
     listEl.innerHTML = filtered.map(item => `
         <div class="wrong-card">
             <h3>${item.year}년 ${item.semester}학기 ${item.subject} ${item.examType} · ${item.questionNum}번 (${item.score}점)</h3>
-            <p style="margin-top:10px; font-weight:bold;">${item.questionText}</p>
+            <p style="margin-top:10px; font-weight:bold;">${boxifyBogi(item.questionText)}</p>
             <div class="ans-review">
                 <p class="my-ans">내 선택: ${item.myAnswerText}</p>
                 <p class="real-ans">정답: ${item.correctAnswerText}</p>

@@ -281,6 +281,25 @@ input[type="text"] { font-size: 16px; }
 .ans-review .my-ans { color: var(--red-pen); font-weight: 500; }
 .ans-review .real-ans { color: var(--seal); font-weight: 600; margin-top: 4px; }
 
+/* --- ★ 지문 안 도식(원본 시험지 박스+화살표 표현) --- */
+.diagram-row {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    justify-content: center; margin: 14px 0; font-family: 'IBM Plex Sans KR', sans-serif;
+}
+.diagram-box {
+    border: 1.5px solid var(--ink); border-radius: 4px; padding: 6px 14px;
+    background: var(--paper-card); font-weight: 700; font-size: 15px; color: var(--ink);
+    white-space: nowrap;
+}
+.diagram-arrow { font-size: 16px; color: var(--ink-soft); padding: 0 2px; }
+
+/* --- ★ <보기> 이후 내용을 감싸는 박스 --- */
+.bogi-box {
+    display: block; margin-top: 12px; padding: 14px 16px;
+    border: 1.5px solid var(--ink); border-radius: 4px;
+    background: var(--paper-card); white-space: pre-wrap; line-height: 1.75;
+}
+
 /* 키보드 포커스 표시 (접근성) */
 button:focus-visible, select:focus-visible, input:focus-visible {
     outline: 2px solid var(--red-pen); outline-offset: 2px;
