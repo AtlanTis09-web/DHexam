@@ -288,7 +288,7 @@ function checkAnswer(selectedVal) {
         expBox.innerHTML = `<h3 style="color:#e74c3c;">❌ 오답입니다. (정답: ${correctText})</h3><p style="margin-top:10px;"><strong>💡 해설:</strong><br>${q.explanation}</p>`;
     }
 
-    document.querySelector('.question-area').insertBefore(expBox, document.getElementById('scratchPad'));
+    document.querySelector('.question-area').insertBefore(expBox, document.querySelector('.btn-group'));
     renderMath(expBox);
 
     const nextBtn = document.querySelector('.question-area .primary-btn');
