@@ -33,7 +33,15 @@ window.onload = function() {
         return;
     }
     renderGradeChips();
+    updateSideWrongCount();
 };
+
+function updateSideWrongCount() {
+    const el = document.getElementById('sideWrongCount');
+    if (!el) return;
+    const count = loadWrongHistory().length;
+    el.innerHTML = `${count}<span>개</span>`;
+}
 
 function renderGradeChips() {
     const grades = [...new Set(examListInfo.exams.map(e => e.grade))].sort((a, b) => a - b);
@@ -107,9 +115,40 @@ function renderExamList() {
         return;
     }
 
-    wrap.innerHTML = exams.map(e =>
-        `<button type="button" class="exam-item" data-dataname="${e.dataName}" onclick="selectExam('${e.dataName}')">${e.year}년 ${e.semester}학기 ${e.examType}</button>`
-    ).join('');
+    // 최신 연도가 위로, 최신 연도만 기본으로 펼쳐진 상태
+    const years = [...new Set(exams.map(e => e.year))].sort((a, b) => b - a);
+
+    wrap.innerHTML = years.map((year, idx) => {
+        const yearExams = exams
+            .filter(e => e.year === year)
+            .sort((a, b) => a.semester - b.semester || (a.examType === '중간고사' ? -1 : 1));
+
+        const isOpen = idx === 0;
+
+        const itemsHtml = yearExams.map(e => {
+            const isMid = e.examType === '중간고사';
+            return `<button type="button" class="exam-item" data-dataname="${e.dataName}" onclick="selectExam('${e.dataName}')">
+                <span class="exam-badge ${isMid ? 'exam-badge-mid' : 'exam-badge-fin'}">${isMid ? '중간' : '기말'}</span>
+                <span>${e.semester}학기 ${e.examType}</span>
+            </button>`;
+        }).join('');
+
+        return `
+            <div class="exam-year-group${isOpen ? ' open' : ''}">
+                <button type="button" class="exam-year-header" onclick="toggleYearGroup(this)">
+                    <span>${year}년</span>
+                    <span class="exam-year-count">${yearExams.length}개 · <span class="exam-year-caret">${isOpen ? '▲' : '▼'}</span></span>
+                </button>
+                <div class="exam-year-body">${itemsHtml}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleYearGroup(headerBtn) {
+    const group = headerBtn.closest('.exam-year-group');
+    group.classList.toggle('open');
+    headerBtn.querySelector('.exam-year-caret').textContent = group.classList.contains('open') ? '▲' : '▼';
 }
 
 function selectExam(dataName) {
@@ -121,7 +160,13 @@ function selectExam(dataName) {
 }
 
 function updateStartButton() {
-    document.getElementById('startExamBtn').disabled = !selectedExamDataName;
+    const btn = document.getElementById('startExamBtn');
+    const hint = document.getElementById('startHint');
+    const ready = !!selectedExamDataName;
+
+    btn.disabled = !ready;
+    btn.style.display = ready ? 'block' : 'none';
+    hint.style.display = ready ? 'none' : 'block';
 }
 
 // 2. 시험 시작 버튼 클릭 시
@@ -686,4 +731,5 @@ function clearWrongHistory() {
 function backToSelectionFromWrongNote() {
     document.getElementById('wrongNoteContainer').style.display = 'none';
     document.getElementById('selectionScreen').style.display = 'flex';
+    updateSideWrongCount();
 }
